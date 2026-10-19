@@ -27,7 +27,7 @@ function snapshot() {
   const { undo, players, refs, ...pub } = S;
   const shown = {};
   for (const [r, ref] of Object.entries(refs || {})) if (revealed(+r, true)) shown[r] = ref;
-  return JSON.stringify({ ...pub, refs: shown, players: players.map(({ token, ...p }) => p), hasUndo: !!undo, now: Date.now() });
+  return JSON.stringify({ ...pub, refs: shown, players: players.map(({ token, rid, ...p }) => p), hasUndo: !!undo, boot: BOOT, now: Date.now() });
 }
 function push() {
   S.seq++;
@@ -36,12 +36,13 @@ function push() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => fs.writeFile(DATA, JSON.stringify(S), () => {}), 300);
 }
-setInterval(() => { for (const res of clients) res.write(': ping\n\n'); }, 25000);
+const BOOT = Date.now(); // cambia cada vez que el servidor arranca o se vuelve a desplegar
+setInterval(() => { for (const res of clients) res.write('event: ping\ndata: 1\n\n'); }, 20000);
 
 // ------------------------------------------------------------ reglas del torneo
 const fail = msg => { throw new Error(msg); };
 
-function addPlayer(raw) {
+function addPlayer(raw, rid) {
   const name = String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 30);
   if (name.length < 2) fail('Escribe tu nombre (mínimo 2 letras).');
   if (S.players.length >= MAX_PLAYERS) fail('Ya no hay más cupos de registro.');
@@ -53,6 +54,7 @@ function addPlayer(raw) {
   if (!combos.length) combos = EMOJI.flatMap(e => COLORS.map(c => [e, c]));
   const [emoji, color] = combos[crypto.randomInt(combos.length)];
   const player = { id: crypto.randomBytes(6).toString('hex'), token: crypto.randomBytes(16).toString('hex'), name, avatar: { emoji, color } };
+  if (rid) player.rid = rid;
   S.players.push(player);
   return player;
 }
@@ -289,6 +291,8 @@ function readBody(req, limit) {
     req.on('error', bad);
   });
 }
+const validRid = v => typeof v === 'string' && /^[a-z0-9]{16,48}$/.test(v) ? v : null;
+const pub = ({ rid, ...p }) => p; // datos que recibe el propio concursante (incluye su token)
 const sameKey = k => { const a = Buffer.from(String(k || '')), b = Buffer.from(ADMIN_KEY); return a.length === b.length && crypto.timingSafeEqual(a, b); };
 
 http.createServer(async (req, res) => {
@@ -304,10 +308,20 @@ http.createServer(async (req, res) => {
     if (req.method === 'GET' && url === '/api/ping') return json(res, 200, { ok: true });
     if (req.method === 'POST' && url === '/api/register') {
       const b = await readBody(req);
+      const rid = validRid(b.rid);
+      // Mismo celular que ya se inscribió (p. ej. se perdió la respuesta): devolver su inscripción
+      const prev = rid && S.players.find(p => p.rid === rid);
+      if (prev) return json(res, 200, { ok: true, player: pub(prev), seq: S.seq });
       if (!S.regOpen || S.phase !== 'registro') fail('El registro está cerrado.');
-      const player = addPlayer(b.name);
+      const player = addPlayer(b.name, rid);
       push();
-      return json(res, 200, { ok: true, player });
+      return json(res, 200, { ok: true, player: pub(player), seq: S.seq });
+    }
+    // El celular recupera su inscripción con su identificador de dispositivo
+    if (req.method === 'POST' && url === '/api/me') {
+      const b = await readBody(req), rid = validRid(b.rid);
+      const p = rid && S.players.find(x => x.rid === rid);
+      return p ? json(res, 200, { ok: true, player: pub(p), seq: S.seq }) : json(res, 404, { error: 'Sin inscripción' });
     }
     if (req.method === 'POST' && url === '/api/upload') {
       const b = await readBody(req, MAX_IMG * 1.4);

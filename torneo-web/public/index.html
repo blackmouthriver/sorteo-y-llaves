@@ -69,8 +69,23 @@ form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase
 <script src="/common.js"></script>
 <script>
 const KEY = 'torneo-jugador', TKEY = 'torneo-token';
-let myId = null, myToken = null;
-try { myId = localStorage.getItem(KEY); myToken = localStorage.getItem(TKEY); } catch (e) {}
+const DKEY = 'torneo-dispositivo';
+let myId = null, myToken = null, myLocal = null, regSeq = 0, rid = null, boot = 0;
+try { myId = localStorage.getItem(KEY); myToken = localStorage.getItem(TKEY); rid = localStorage.getItem(DKEY); } catch (e) {}
+if (!rid) {
+  const a = new Uint8Array(12); crypto.getRandomValues(a);
+  rid = Array.from(a, x => x.toString(16).padStart(2, '0')).join('');
+  try { localStorage.setItem(DKEY, rid); } catch (e) {}
+}
+function saveMe(p, seq) {
+  myId = p.id; myToken = p.token; myLocal = p; regSeq = seq || 0;
+  try { localStorage.setItem(KEY, myId); localStorage.setItem(TKEY, myToken); } catch (e) {}
+}
+// Si este celular ya se había inscrito, recupera su inscripción aunque se haya perdido la vista
+async function recover() {
+  try { const r = await post('/api/me', { rid }); saveMe(r.player, r.seq); if (STATE) render(STATE); } catch (e) {}
+}
+recover();
 const CONSUELO = ['Lo diste todo y se notó. ¡La próxima es tuya!', 'Caíste con la frente en alto. Gracias por competir.',
   'Hoy no se dio, pero qué gran duelo. ¡Aplausos!', 'Cada duelo te hace mejor. ¡Gracias por participar!'];
 
@@ -112,8 +127,13 @@ function status(s, me) {
 
 function render(s) {
   $('wait').hidden = true;
-  const me = myId && player(myId);
-  if (myId && !me) { myId = null; try { localStorage.removeItem(KEY); } catch (e) {} }
+  // Si el servidor se reinició o se volvió a desplegar, recarga la página para tener la versión nueva
+  if (boot && s.boot && s.boot !== boot) { location.reload(); return; }
+  boot = s.boot || boot;
+  let me = myId && player(myId);
+  // Recién inscrito: la lista en vivo puede tardar un instante en incluirlo
+  if (myId && !me && myLocal && myLocal.id === myId && s.seq < regSeq) me = myLocal;
+  if (myId && !me) { myId = null; myToken = null; myLocal = null; try { localStorage.removeItem(KEY); localStorage.removeItem(TKEY); } catch (e) {} }
   const open = s.regOpen && s.phase === 'registro';
   $('form').hidden = !!me || !open;
   $('closed').hidden = !!me || open;
@@ -185,12 +205,19 @@ setInterval(() => { if (!STATE) return; const ms = stageLeft(STATE), t = ms === 
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   $('err').hidden = true;
+  const btn = $('form').querySelector('button');
+  if (btn.disabled) return;
+  btn.disabled = true; btn.textContent = 'Inscribiendo…';
   try {
-    const r = await post('/api/register', { name: $('name').value });
-    myId = r.player.id; myToken = r.player.token;
-    try { localStorage.setItem(KEY, myId); localStorage.setItem(TKEY, myToken); } catch (e2) {}
+    let r = null;
+    for (let i = 0; i < 3 && !r; i++) {
+      try { r = await post('/api/register', { name: $('name').value, rid }); }
+      catch (err) { if (err.status || i === 2) throw err; await new Promise(ok => setTimeout(ok, 1500)); } // reintenta solo si falló la red
+    }
+    saveMe(r.player, r.seq);
     if (STATE) render(STATE);
-  } catch (err) { $('err').textContent = err.message; $('err').hidden = false; }
+  } catch (err) { $('err').textContent = err.status ? err.message : 'No hay conexión. Revisa tu internet e inténtalo de nuevo.'; $('err').hidden = false; }
+  btn.disabled = false; btn.textContent = 'Inscribirme';
 });
 connect(render);
 </script>

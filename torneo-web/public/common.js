@@ -4,9 +4,22 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 let STATE = null, clockOffset = 0;
 const now = () => Date.now() + clockOffset;
 
+// Conexión en vivo que se recupera sola si el celular se bloquea, cambia de red o el servidor se reinicia
+let lastMsg = 0;
 function connect(onState) {
-  const es = new EventSource('/api/stream');
-  es.onmessage = e => { const d = JSON.parse(e.data); clockOffset = d.now - Date.now(); STATE = d; onState(d); };
+  let es = null;
+  const open = () => {
+    if (es) es.close();
+    es = new EventSource('/api/stream');
+    lastMsg = Date.now();
+    es.onmessage = e => { lastMsg = Date.now(); const d = JSON.parse(e.data); clockOffset = d.now - Date.now(); STATE = d; onState(d); };
+    es.addEventListener('ping', () => { lastMsg = Date.now(); });
+    es.onerror = () => { if (es.readyState === 2) setTimeout(open, 3000); };
+  };
+  open();
+  setInterval(() => { if (Date.now() - lastMsg > 50000) open(); }, 10000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastMsg > 25000) open(); });
+  window.addEventListener('online', open);
   setInterval(() => fetch('/api/ping').catch(() => {}), 240000); // mantiene despierto el servidor gratuito
 }
 async function post(url, body) {
