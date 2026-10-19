@@ -56,6 +56,14 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 #zoom .zrow.three{grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr)}
 #zoom .zref .pic{border:3px solid var(--gold)}
 #zoom .zt{margin:0;font-size:1.1rem;text-align:center;white-space:pre-wrap;max-height:22vh;overflow:auto}
+.one{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr);gap:18px;align-items:start;margin-top:16px}
+.one .oside{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+.one .pic{aspect-ratio:auto;height:58vh}
+.one .oref .pic{border:3px solid var(--gold)}
+.one .zn{display:flex;align-items:center;gap:12px;font-family:var(--display);font-size:clamp(1.6rem,3vw,2.6rem);text-transform:uppercase;line-height:1;text-align:center}
+.one .zn .av{font-size:1.6rem}
+.one .zt{margin:0;font-size:1.15rem;text-align:center;white-space:pre-wrap;max-height:20vh;overflow:auto}
+@media (max-width:800px){.one{grid-template-columns:minmax(0,1fr)}.one .pic{height:40vh}}
 #zoom{position:fixed;inset:0;background:rgba(238,241,246,.98);z-index:4;display:flex;flex-direction:column;gap:14px;padding:20px;cursor:zoom-out}
 #zoom .zrow{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px;align-items:center;min-height:0}
 #zoom .zs{display:flex;flex-direction:column;align-items:center;gap:10px;height:100%;min-height:0;min-width:0}
@@ -279,6 +287,18 @@ function render() {
     const cards = s.rounds[r].filter(mt => !mt.bye && mt.a && mt.b).map(mt => card(mt, fin ? 'Final' : '', String(r))).join('') + (hasThird ? card(s.third, 'Tercer y cuarto puesto', 't') : '');
     const title = { prep: 'Prepárense · en un momento la referencia', ref: 'Referencia · obsérvenla con atención', upload: '¡Suban su imagen!', results: 'Resultados de la ronda' }[st];
     let html = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · ' + title + '</div><div id="clock"></div></div>';
+    const list = phaseMatches(s), cur = st === 'results' ? (list.find(x => !x.mt.winner) || null) : null;
+    if (cur) {
+      // Resultados llave por llave: imagen A · referencia · imagen B
+      const n = list.indexOf(cur) + 1, side = id => { const p = player(id); return '<div class="oside">' + pic(id, cur.key, 'show') + '<div class="zn">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div></div>'; };
+      const mid = '<div class="oside oref">' + (ref && ref.img ? '<div class="pic has"><img alt="Referencia" src="/img/ref_' + r + '.jpg?v=' + ref.img + '"></div>' : '') +
+        '<div class="zn">Referencia</div>' + (ref && ref.text ? '<p class="zt">' + esc(ref.text) + '</p>' : '') + '</div>';
+      $('view').innerHTML = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · ' + esc(cur.label) + ' · duelo ' + n + ' de ' + list.length + '</div></div>' +
+        '<div class="one">' + side(cur.mt.a) + mid + side(cur.mt.b) + '</div>' +
+        '<div class="tl" style="margin:22px 0 8px">Llaves</div>' + bracketHTML(s);
+      lastSec = -1; tick(); return;
+    }
+    if (st === 'results') html = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · Ronda terminada</div><p class="muted" style="margin:6px 0 0;font-size:1.2rem">Estos son todos los resultados de la ronda.</p></div>';
     if (st === 'ref') html += refHTML(r, ref, true);
     else {
       if (st === 'results' && ref) html += refHTML(r, ref, false);

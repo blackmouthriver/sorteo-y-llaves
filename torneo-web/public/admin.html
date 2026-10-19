@@ -103,6 +103,21 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
       </div>
 
       <div style="display:flex;flex-direction:column;gap:18px">
+        <section class="panel" id="refPanel">
+          <div class="row" style="justify-content:space-between"><h2>Referencia de la ronda</h2>
+            <select id="refR" aria-label="Ronda"></select></div>
+          <p class="muted" style="margin:0">Elige la ronda, escribe el texto y/o elige la imagen que los estudiantes deben seguir, y pulsa Guardar. Puedes prepararlas antes del sorteo. Nadie la ve hasta que pulses "Mostrar referencia" en esa ronda.</p>
+          <textarea id="refText" rows="4" maxlength="2000" placeholder="Ej.: Genera una imagen de una ciudad futurista al atardecer, estilo acuarela…"></textarea>
+          <div class="refrow">
+            <div class="refprev" id="refPrev">Sin imagen de referencia</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label class="filebtn">Elegir imagen<input id="refFile" type="file" accept="image/*"></label>
+              <button id="refDel" class="small danger">Quitar imagen</button>
+            </div>
+          </div>
+          <div class="row"><button class="gold" id="refSave">Guardar referencia</button><span id="refMsg" class="ok" hidden></span></div>
+        </section>
+
         <section class="panel live" id="live" hidden>
           <div class="k" id="liveK"></div>
           <div id="aclock"></div>
@@ -116,20 +131,7 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
           <p class="muted" id="liveHint" style="margin:0"></p>
         </section>
 
-        <section class="panel" id="refPanel" hidden>
-          <div class="row" style="justify-content:space-between"><h2>Referencia de la ronda</h2>
-            <select id="refR" aria-label="Ronda"></select></div>
-          <p class="muted" style="margin:0">Imagen y/o texto que los estudiantes deben seguir. Solo se muestra cuando pulses "Mostrar referencia" en esa ronda.</p>
-          <textarea id="refText" rows="4" maxlength="2000" placeholder="Ej.: Genera una imagen de una ciudad futurista al atardecer, estilo acuarela…"></textarea>
-          <div class="refrow">
-            <div class="refprev" id="refPrev">Sin imagen de referencia</div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              <label class="filebtn">Elegir imagen<input id="refFile" type="file" accept="image/*"></label>
-              <button id="refDel" class="small danger">Quitar imagen</button>
-            </div>
-          </div>
-          <div class="row"><button class="gold" id="refSave">Guardar referencia</button><span id="refMsg" class="ok" hidden></span></div>
-        </section>
+
 
         <section class="panel">
           <div class="row" style="justify-content:space-between">
@@ -262,15 +264,18 @@ setInterval(() => { if (!STATE || !STATE.stage) return; const ms = stageLeft(STA
 let REFS = {}, refLoadedFor = '', refImgData = null, refDelImg = false, refPicked = '';
 async function loadRefs() { const r = await act('getRefs'); if (r) { REFS = r.refs || {}; fillRefForm(); } }
 function renderRefPanel(s) {
-  $('refPanel').hidden = !s.rounds || s.phase === 'fin';
-  if (!s.rounds) return;
-  const T = s.rounds.length, sig = T + ':' + s.activeRound + ':' + (s.stage ? s.stage.name : '');
+  $('refPanel').hidden = s.phase === 'fin';
+  if (s.phase === 'fin') return;
+  // Antes del sorteo aún no se sabe cuántas rondas habrá: se calcula con los inscritos
+  const T = s.rounds ? s.rounds.length : Math.max(1, Math.ceil(Math.log2(Math.max(2, s.players.length))));
+  const label = r => s.rounds ? roundName(r, T) + (r === T - 1 && T > 1 ? ' (y 3.er puesto)' : '') : 'Ronda ' + (r + 1) + ' · ' + roundName(r, T);
+  const sig = (s.rounds ? 'R' : 'P') + T + ':' + s.activeRound + ':' + (s.stage ? s.stage.name : '');
   const editable = [];
   for (let r = 0; r < T; r++) if (r > s.activeRound || (r === s.activeRound && s.stage && s.stage.name === 'prep')) editable.push(r);
   if (sig !== refLoadedFor) {
     refLoadedFor = sig;
     const cur = $('refR').value;
-    $('refR').innerHTML = editable.map(r => '<option value="' + r + '">' + roundName(r, T) + (r === T - 1 && T > 1 ? ' (y 3.er puesto)' : '') + '</option>').join('');
+    $('refR').innerHTML = editable.map(r => '<option value="' + r + '">' + label(r) + '</option>').join('');
     if (editable.includes(+cur) && cur !== '') $('refR').value = cur;
     $('refPanel').hidden = !editable.length;
     loadRefs();

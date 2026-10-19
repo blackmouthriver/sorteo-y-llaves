@@ -57,3 +57,13 @@ function toJpeg(file) {
     img.src = url;
   });
 }
+
+// Duelos de la fase activa en el orden en que se revisan (en la fase final, primero el 3.er puesto)
+function phaseMatches(s) {
+  if (!s.rounds || s.activeRound < 0) return [];
+  const r = s.activeRound, T = s.rounds.length, list = [];
+  if (r === T - 1 && s.third && s.third.a && s.third.b) list.push({ mt: s.third, key: 't', third: true, label: 'Tercer y cuarto puesto' });
+  s.rounds[r].forEach((mt, m) => { if (!mt.bye && mt.a && mt.b) list.push({ mt, key: String(r), m, label: r === T - 1 ? 'Final' : 'Llave ' + (m + 1) }); });
+  return list;
+}
+const currentDuel = s => phaseMatches(s).find(x => !x.mt.winner) || null;
