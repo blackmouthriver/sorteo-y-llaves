@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sorteo y Llaves · Pantalla</title>
+<title>Torneo de Prompts TEINCO 2026</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/style.css">
 <style>
@@ -38,7 +38,18 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 .pair .who{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
 .pair .who span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* duelos de la fase */
-.duels{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:16px}
+.duels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px;margin-top:16px}
+.dc{cursor:zoom-in}
+.pic{aspect-ratio:4/3;width:100%;border-radius:8px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);font-family:var(--body);font-size:.95rem;text-transform:none;padding:8px}
+.pic img{width:100%;height:100%;object-fit:contain;display:block}
+.pic.has{padding:0;background:#fff}
+.dside.w .pic{border:3px solid var(--win)}
+#zoom{position:fixed;inset:0;background:rgba(238,241,246,.98);z-index:4;display:flex;flex-direction:column;gap:14px;padding:20px;cursor:zoom-out}
+#zoom .zrow{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:18px;align-items:center;min-height:0}
+#zoom .zs{display:flex;flex-direction:column;align-items:center;gap:10px;height:100%;min-height:0;min-width:0}
+#zoom .pic{flex:1;aspect-ratio:auto;min-height:0}
+#zoom .zn{display:flex;align-items:center;gap:12px;font-family:var(--display);font-size:clamp(1.6rem,3vw,2.6rem);text-transform:uppercase;line-height:1}
+#zoom .zn .av{font-size:1.8rem}
 .dc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
 .dc.done{border-color:var(--win)}
 .drow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}
@@ -46,6 +57,10 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 .dside .av{font-size:2.6rem} .dside span:last-child{overflow-wrap:anywhere}
 .dside.w{color:var(--win)} .dside.w .av{box-shadow:0 0 0 4px var(--win)} .dside.l{opacity:.35}
 .dc .vs{font-size:1.3rem}
+.dc .drow{align-items:start} .dc .drow>.vs{align-self:center;margin-bottom:2.4em}
+.dc .dside .av{font-size:1.5rem}
+.dc .dside .row{flex-wrap:nowrap;min-height:2.6em;font-size:1.35rem;min-width:0}
+.dc .dside .row span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* llaves */
 .bracket{display:flex;gap:26px;overflow-x:auto;padding-bottom:10px}
 .round{flex:1 0 220px;min-width:220px;display:flex;flex-direction:column;gap:10px}
@@ -81,7 +96,7 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 </head>
 <body>
 <header>
-  <h1>Sorteo <span>&amp;</span> Llaves</h1>
+  <h1>Torneo de <span>Prompts</span> TEINCO 2026</h1>
   <div class="row"><span id="phase"></span><button id="sound" class="small">🔇 Activar sonido</button></div>
 </header>
 
@@ -92,6 +107,7 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
   </div>
 </section>
 <main id="view"><p class="muted">Conectando…</p></main>
+<div id="zoom" hidden></div>
 <div id="overlay" hidden></div>
 <canvas id="fx"></canvas>
 
@@ -168,6 +184,17 @@ function banner(r) {
   fanfare();
 }
 
+// ---------- imágenes de los duelos
+function imgSrc(id, key) { const v = STATE.images && STATE.images[id] && STATE.images[id][key]; return v ? '/img/' + id + '_' + key + '.jpg?v=' + v : ''; }
+function pic(id, key) { const src = id && imgSrc(id, key); return '<div class="pic' + (src ? ' has' : '') + '">' + (src ? '<img alt="" src="' + src + '">' : 'Esperando imagen…') + '</div>'; }
+$('view').addEventListener('click', e => {
+  const c = e.target.closest('.dc[data-key]'); if (!c) return;
+  const key = c.dataset.key, side = id => { const p = player(id); return '<div class="zs">' + pic(id, key) + '<div class="zn">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div></div>'; };
+  $('zoom').innerHTML = '<div class="k" style="text-align:center;font-size:1.4rem">' + (key === 't' ? 'Tercer y cuarto puesto' : roundName(+key, STATE.rounds.length)) + ' · clic para cerrar</div><div class="zrow">' + side(c.dataset.a) + '<span class="vs">VS</span>' + side(c.dataset.b) + '</div>';
+  $('zoom').hidden = false;
+});
+$('zoom').onclick = () => { $('zoom').hidden = true; };
+
 // ---------- vistas
 const who = (id, cls) => { const p = player(id); return '<div class="' + cls + '">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div>'; };
 function slot(mt, k) {
@@ -219,10 +246,10 @@ function render() {
   } else if (view === 'sorteo') { drawDone = false; renderDraw(); }
   else if (view === 'torneo') {
     const r = s.activeRound;
-    const ds = (mt, k) => { const p = player(mt[k]), c = mt.winner ? (mt.winner === k ? ' w' : ' l') : ''; return '<div class="dside' + c + '">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div>'; };
-    const card = (mt, label) => '<div class="dc' + (mt.winner ? ' done' : '') + '">' + (label ? '<div class="k">' + label + '</div>' : '') + '<div class="drow">' + ds(mt, 'a') + '<span class="vs">VS</span>' + ds(mt, 'b') + '</div></div>';
+    const ds = (mt, k, key) => { const p = player(mt[k]), c = mt.winner ? (mt.winner === k ? ' w' : ' l') : ''; return '<div class="dside' + c + '">' + pic(mt[k], key) + '<div class="row" style="justify-content:center;gap:8px">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div></div>'; };
+    const card = (mt, label, key) => '<div class="dc' + (mt.winner ? ' done' : '') + '" data-key="' + key + '" data-a="' + mt.a + '" data-b="' + mt.b + '" title="Clic para ampliar">' + (label ? '<div class="k">' + label + '</div>' : '') + '<div class="drow">' + ds(mt, 'a', key) + '<span class="vs">VS</span>' + ds(mt, 'b', key) + '</div></div>';
     const fin = r === T - 1, hasThird = fin && s.third && s.third.a && s.third.b;
-    const cards = s.rounds[r].filter(mt => !mt.bye && mt.a && mt.b).map(mt => card(mt, fin ? 'Final' : '')).join('') + (hasThird ? card(s.third, 'Tercer y cuarto puesto') : '');
+    const cards = s.rounds[r].filter(mt => !mt.bye && mt.a && mt.b).map(mt => card(mt, fin ? 'Final' : '', String(r))).join('') + (hasThird ? card(s.third, 'Tercer y cuarto puesto', 't') : '');
     $('view').innerHTML = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · tiempo de la fase</div><div id="clock"></div></div>' +
       '<div class="duels">' + cards + '</div><div class="tl" style="margin:22px 0 8px">Llaves</div>' + bracketHTML(s);
     lastSec = -1; tick();

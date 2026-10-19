@@ -1,4 +1,4 @@
-# Sorteo y Llaves
+# Torneo de Prompts TEINCO 2026
 
 Torneo de eliminación directa en tiempo real. Node.js 18+ sin dependencias (no hace falta `npm install`).
 
@@ -6,8 +6,8 @@ Torneo de eliminación directa en tiempo real. Node.js 18+ sin dependencias (no 
 
 | Dirección   | Para quién      | Qué hace |
 |-------------|-----------------|----------|
-| `/`         | Concursantes    | Escriben su nombre, reciben un avatar y ven su estado (rival, turno, felicitación o consuelo). |
-| `/pantalla` | Proyector       | Lista de inscritos con QR, sorteo en vivo, llaves, duelo con cuenta regresiva, animaciones y podio. |
+| `/`         | Concursantes    | Escriben su nombre, reciben un avatar, ven en qué ronda están y suben la imagen de cada duelo. |
+| `/pantalla` | Proyector       | Lista de inscritos con QR, sorteo en vivo, duelos con las dos imágenes lado a lado, cuenta regresiva, llaves, animaciones y podio. |
 | `/admin`    | Administrador   | Clave, tiempo por fase, Excel, sorteo, inicio de cada fase, reloj y ganadores. |
 
 ## Probar en tu computador
@@ -43,3 +43,5 @@ Dos cosas del plan gratuito que debes saber:
 5. En la fase final aparecen dos duelos: tercer y cuarto puesto (entre los perdedores de las semifinales) y la final.
 
 No hay cupo fijo: el torneo se arma con todos los inscritos al momento del sorteo. Si el número no es potencia de 2 (por ejemplo 11), algunos pasan directo a la segunda ronda por sorteo.
+
+Las imágenes se guardan en la carpeta `img-data/` del servidor. En Render gratis se pierden si el servicio se reinicia o se vuelve a desplegar, así que no despliegues cambios en pleno torneo.
