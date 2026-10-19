@@ -43,6 +43,15 @@ form button{font-size:1.05rem;padding:17px;background:var(--accent);color:#fff}
 .cnt{font-family:var(--display);font-weight:700;font-size:1.7rem;letter-spacing:-.03em;color:var(--accent-ink);font-variant-numeric:tabular-nums}
 .reftxt{margin:0;font-size:1.1rem;white-space:pre-wrap;background:var(--gold-soft);border-radius:var(--r-md);padding:14px 16px}
 .sndbtn{align-self:flex-start;font-size:.9rem}
+.vgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vopt{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:var(--r-md);background:var(--bg);text-align:center;font-weight:600;color:var(--ink);min-width:0}
+.vopt .prev{padding:0;background:#fff}
+.vopt .who{display:flex;align-items:center;justify-content:center;gap:6px;min-width:0;font-size:.95rem}
+.vopt .who span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vopt .vc{font-size:.85rem;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.vopt.sel{background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
+.vopt.sel .vc{color:var(--accent-ink);font-weight:700}
+button.vopt{border-radius:var(--r-md);padding:8px}
 .rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.1rem;margin-top:10px}
 #wait{text-align:center}
 </style>
@@ -74,6 +83,12 @@ form button{font-size:1.05rem;padding:17px;background:var(--accent);color:#fff}
     <div class="prev" id="prev">Aún no has subido imagen para esta ronda</div>
     <label class="pick" id="pick"><span id="pickTxt">Subir imagen</span><input id="file" type="file" accept="image/*"></label>
     <div id="upMsg" hidden></div>
+  </section>
+  <section class="up" id="vote" hidden>
+    <h2 id="voteTitle">Vota por la mejor imagen</h2>
+    <p class="muted" id="voteHint" style="margin:0">Toca la imagen que mejor siga la referencia. Puedes cambiar tu voto mientras el duelo esté en pantalla.</p>
+    <div class="vgrid" id="vgrid"></div>
+    <div id="voteMsg" hidden></div>
   </section>
   <p class="muted" id="wait">Conectando…</p>
 </main>
@@ -158,8 +173,47 @@ function render(s) {
   $('status').innerHTML = '<span class="big">' + st.big + '</span>' + (st.html ? st.txt : esc(st.txt));
   $('ronda').hidden = !RONDA; $('rondaTxt').textContent = RONDA;
   renderUpload(s, me);
+  renderVote(s, me);
   narrate(s, st);
 }
+
+// ---------- votación del público
+const VKEY = 'torneo-votos';
+let myVotes = {}, shownVote = '';
+try { myVotes = JSON.parse(localStorage.getItem(VKEY)) || {}; } catch (e) {}
+function renderVote(s, me) {
+  const d = s.phase === 'torneo' && s.stage && s.stage.name === 'results' ? currentDuel(s) : null;
+  $('vote').hidden = !d;
+  if (!d) return;
+  const vk = voteKey(d), mine = me.id === d.mt.a || me.id === d.mt.b, vt = votesOf(s, d), tot = vt.a + vt.b;
+  if (vk !== shownVote) {
+    if (shownVote && !mine) { FX.play('drumroll'); FX.say('Nuevo duelo en pantalla: ' + ((player(d.mt.a) || {}).name || '') + ' contra ' + ((player(d.mt.b) || {}).name || '') + '. ¡Vota por la mejor imagen!'); }
+    shownVote = vk; $('voteMsg').hidden = true;
+    const opt = k => { const p = player(d.mt[k]), v = s.images[d.mt[k]] && s.images[d.mt[k]][d.key];
+      const img = v ? '<div class="prev has"><img alt="" src="/img/' + d.mt[k] + '_' + d.key + '.jpg?v=' + v + '"></div>' : '<div class="prev">Sin imagen</div>';
+      const inner = img + '<div class="who">' + avatar(p) + '<span>' + esc(p ? p.name : '') + '</span></div><div class="vc" data-vc="' + k + '"></div>';
+      return mine ? '<div class="vopt" data-k="' + k + '">' + inner + '</div>' : '<button type="button" class="vopt" data-k="' + k + '">' + inner + '</button>'; };
+    $('vgrid').innerHTML = opt('a') + opt('b');
+    $('voteTitle').textContent = mine ? 'Así van los votos de tu duelo' : 'Vota · ' + d.label;
+    $('voteHint').textContent = mine ? 'El público está votando. Al final, el administrador elige quién avanza.' : 'Toca la imagen que mejor siga la referencia. Puedes cambiar tu voto mientras el duelo esté en pantalla.';
+  }
+  document.querySelectorAll('#vgrid .vopt').forEach(el => {
+    const k = el.dataset.k; el.classList.toggle('sel', myVotes[vk] === k);
+    el.querySelector('.vc').textContent = vt[k] + (vt[k] === 1 ? ' voto' : ' votos') + (tot ? ' · ' + Math.round(vt[k] * 100 / tot) + '%' : '') + (myVotes[vk] === k ? ' · tu voto' : '');
+  });
+}
+$('vgrid').addEventListener('click', async e => {
+  const b = e.target.closest('button.vopt'); if (!b || !STATE) return;
+  const d = currentDuel(STATE); if (!d) return;
+  const vk = voteKey(d), k = b.dataset.k;
+  try {
+    await post('/api/vote', { id: myId, token: myToken, duel: vk, side: k });
+    myVotes[vk] = k; try { localStorage.setItem(VKEY, JSON.stringify(myVotes)); } catch (e2) {}
+    FX.play('pop');
+    $('voteMsg').className = 'ok'; $('voteMsg').textContent = 'Votaste por ' + ((player(d.mt[k]) || {}).name || '') + '.'; $('voteMsg').hidden = false;
+    render(STATE);
+  } catch (err) { $('voteMsg').className = 'err'; $('voteMsg').textContent = err.message; $('voteMsg').hidden = false; }
+});
 
 // ---------- sonido y voz en el celular
 // El navegador exige un toque para habilitar audio; el administrador decide si suena o no

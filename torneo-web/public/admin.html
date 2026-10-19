@@ -63,6 +63,7 @@ ol li button.small{padding:6px 10px}
 .match.open{background:var(--panel);box-shadow:0 0 0 2px var(--accent)}
 .tl{font-family:var(--display);font-weight:600;color:var(--muted);font-size:.95rem;margin-bottom:6px}
 .cam{font-size:.8rem}
+.vts{font-size:.8rem;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .match .s .nx{font-size:.75rem;color:var(--bad);font-weight:700;text-decoration:none}
 /* archivos e imágenes */
 .filebtn{display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:.95rem;background:var(--panel2);padding:12px 18px;border-radius:999px;cursor:pointer;transition:transform .14s var(--ease),background-color .2s var(--ease)}
@@ -260,7 +261,7 @@ function render(s) {
     $('liveHint').textContent = st === 'prep' ? 'Guarda la referencia de esta ronda abajo y pulsa "Mostrar referencia". Todos la verán durante ' + mins(s.refDuration) + '; luego la ronda dura ' + mins(s.duration) + ' para subir la imagen.'
       : st === 'ref' ? 'Los estudiantes están viendo la referencia. Al terminar el tiempo se abre la carga de imágenes automáticamente.'
       : st === 'upload' ? 'Imágenes recibidas: ' + up + ' de ' + ids.length + '. Al terminar el tiempo se muestran los resultados; quien no suba imagen pierde.'
-      : (currentDuel(s) ? 'En pantalla: ' + currentDuel(s).label + ' (borde azul en las llaves). Haz clic en el nombre del ganador y la pantalla pasa a la siguiente llave.' : 'Ronda terminada. Inicia la siguiente fase cuando quieras.');
+      : (currentDuel(s) ? (() => { const d = currentDuel(s), v = votesOf(s, d); return 'En pantalla: ' + d.label + '. Votos del público: ' + plain(d.mt.a) + ' ' + v.a + ' · ' + plain(d.mt.b) + ' ' + v.b + '. Tú decides: haz clic en el nombre del ganador en las llaves (borde azul) y la pantalla pasa a la siguiente llave.'; })() : 'Ronda terminada. Inicia la siguiente fase cuando quieras.');
   }
   renderRefPanel(s);
 
@@ -278,8 +279,9 @@ function render(s) {
         if (!p) return '<div class="s e">' + avatar(null) + '<span class="n">por definir</span></div>';
         const c = mt.winner ? (mt.winner === k ? 'w' : 'l') : '';
         const cam = active && s.images[p.id] && s.images[p.id][mk] ? '<span class="cam" title="Subió imagen">📷</span>' : '';
+        const vts = open ? '<span class="vts">' + votesOf(s, cur)[k] + ' votos</span>' : '';
         const nx = c === 'l' && mt.auto ? '<span class="nx">sin imagen</span>' : '';
-        const inner = avatar(p) + '<span class="n">' + esc(p.name) + '</span>' + cam + nx + (c === 'w' && !mt.bye ? '<span>✓</span>' : '');
+        const inner = avatar(p) + '<span class="n">' + esc(p.name) + '</span>' + vts + cam + nx + (c === 'w' && !mt.bye ? '<span>✓</span>' : '');
         return open ? '<button type="button" class="s" ' + attr + ' data-side="' + k + '" title="Marcar a ' + esc(p.name) + ' como ganador">' + inner + '</button>' : '<div class="s ' + c + '">' + inner + '</div>';
       };
       return '<div class="match' + (open ? ' open' : '') + '">' + sl('a') + sl('b') + '</div>';

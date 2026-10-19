@@ -80,3 +80,6 @@ function phaseMatches(s) {
   return list;
 }
 const currentDuel = s => phaseMatches(s).find(x => !x.mt.winner) || null;
+// Clave de votación de un duelo y sus totales
+const voteKey = d => d.key + ':' + d.mt.a + ':' + d.mt.b;
+const votesOf = (s, d) => (s.tally && s.tally[voteKey(d)]) || { a: 0, b: 0 };

@@ -81,13 +81,21 @@ header h1 small{font:600 .42em var(--body);letter-spacing:0;color:var(--muted);m
 /* resultados llave por llave */
 .one{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:start;margin-top:16px}
 .one .oside{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
-.one .pic{aspect-ratio:auto;height:58vh;background:#fff}
+.one .pic{aspect-ratio:auto;height:min(48vh,560px);background:#fff}
 .one .oref .pic{box-shadow:0 0 0 3px var(--gold)}
 .one .zn{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,2.8vw,2.5rem);letter-spacing:-.035em;line-height:1;text-align:center}
 .one .zn .av{font-size:1.4rem}
 .one .zt{margin:0;font-size:1.1rem;text-align:center;white-space:pre-wrap;max-height:20vh;overflow:auto;color:var(--muted)}
 @media (max-width:800px){.one{grid-template-columns:minmax(0,1fr)}.one .pic{height:40vh}}
 /* zoom */
+.votehint{text-align:center;margin:14px 0 0;font-family:var(--display);font-weight:600;font-size:clamp(1.05rem,1.8vw,1.4rem);color:var(--accent-ink)}
+.vote{width:100%;max-width:420px;display:flex;flex-direction:column;gap:8px}
+.vnum{font-size:clamp(1rem,1.6vw,1.3rem);color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.vnum b{font-family:var(--display);font-size:1.6em;color:var(--ink);letter-spacing:-.03em}
+.vtrack{height:12px;border-radius:999px;background:var(--panel2);overflow:hidden}
+.vtrack i{display:block;height:100%;background:#9aa3b5;transform-origin:left;transition:transform .5s var(--ease)}
+.vote.lead .vtrack i{background:var(--accent)}
+.vote.lead .vnum b{color:var(--accent)}
 #zoom{position:fixed;inset:0;background:var(--bg);z-index:4;display:flex;flex-direction:column;gap:16px;padding:clamp(16px,2.4vw,32px);cursor:zoom-out;animation:pop .28s var(--ease) both}
 #zoom .zrow{flex:1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:20px;align-items:center;min-height:0}
 #zoom .zrow.three{grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr)}
@@ -162,6 +170,7 @@ const STEP = 3800; // milisegundos por llave en el sorteo (da tiempo a que la vo
 const CONSUELO = ['¡Gran esfuerzo, {n}! Lo diste todo.', 'Gracias por participar, {n}. ¡La próxima es tuya!',
   '{n} cae con la frente en alto. ¡Aplausos!', '¡Qué gran duelo, {n}! Hoy no se dio, pero dejaste huella.'];
 const seen = new Set();
+let lastVoteKey = '', lastVotes = 0;
 let drawSig = '', lastTick = 0, lastStageKey = '', lastDuelKey = '', lastImgs = -1, said = {};
 let first = true, lastEvent = null, lastPhase = null, overlayT = null, view = '', endedFor = 0, lastSec = -1, drawDone = false;
 
@@ -337,11 +346,15 @@ function render() {
     const list = phaseMatches(s), cur = st === 'results' ? (list.find(x => !x.mt.winner) || null) : null;
     if (cur) {
       // Resultados llave por llave: imagen A · referencia · imagen B
-      const n = list.indexOf(cur) + 1, side = id => { const p = player(id); return '<div class="oside">' + pic(id, cur.key, 'show') + '<div class="zn">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div></div>'; };
+      const n = list.indexOf(cur) + 1, vt = votesOf(s, cur), tot = vt.a + vt.b;
+      const vbar = k => { const pc = tot ? Math.round(vt[k] * 100 / tot) : 0, lead = tot && vt[k] > vt[k === 'a' ? 'b' : 'a'];
+        return '<div class="vote' + (lead ? ' lead' : '') + '"><div class="vnum"><b>' + vt[k] + '</b> ' + (vt[k] === 1 ? 'voto' : 'votos') + (tot ? ' · ' + pc + '%' : '') + '</div><div class="vtrack"><i style="transform:scaleX(' + (tot ? vt[k] / tot : 0) + ')"></i></div></div>'; };
+      const side = (id, k) => { const p = player(id); return '<div class="oside">' + pic(id, cur.key, 'show') + '<div class="zn">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div>' + vbar(k) + '</div>'; };
       const mid = '<div class="oside oref">' + (ref && ref.img ? '<div class="pic has"><img alt="Referencia" src="/img/ref_' + r + '.jpg?v=' + ref.img + '"></div>' : '') +
         '<div class="zn">Referencia</div>' + (ref && ref.text ? '<p class="zt">' + esc(ref.text) + '</p>' : '') + '</div>';
       $('view').innerHTML = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · ' + esc(cur.label) + ' · duelo ' + n + ' de ' + list.length + '</div></div>' +
-        '<div class="one">' + side(cur.mt.a) + mid + side(cur.mt.b) + '</div>' +
+        '<p class="votehint">Vota desde tu celular por la imagen que mejor siga la referencia</p>' +
+        '<div class="one">' + side(cur.mt.a, 'a') + mid + side(cur.mt.b, 'b') + '</div>' +
         '<div class="tl" style="margin:22px 0 8px">Llaves</div>' + bracketHTML(s);
       lastSec = -1; tick(); return;
     }
@@ -409,10 +422,11 @@ function announce(s) {
     }
     if (st === 'results') {
       const list = phaseMatches(s), cur = list.find(x => !x.mt.winner);
+      if (cur) { const vt = votesOf(s, cur), n = vt.a + vt.b, vk = voteKey(cur); if (vk === lastVoteKey && n > lastVotes) FX.play('blip'); lastVoteKey = vk; lastVotes = n; }
       const dk = cur ? r + ':' + cur.key + ':' + cur.mt.a + cur.mt.b : r + ':fin';
       if (dk !== lastDuelKey) {
         lastDuelKey = dk;
-        if (cur) { setTimeout(() => FX.play('drumroll'), 400); FX.say((cur.third ? 'Duelo por el tercer puesto' : cur.label === 'Final' ? 'La gran final' : cur.label) + ': ' + plainName(cur.mt.a) + ' contra ' + plainName(cur.mt.b) + '. Comparen las imágenes con la referencia. ¿Quién ganará?'); }
+        if (cur) { setTimeout(() => FX.play('drumroll'), 400); FX.say((cur.third ? 'Duelo por el tercer puesto' : cur.label === 'Final' ? 'La gran final' : cur.label) + ': ' + plainName(cur.mt.a) + ' contra ' + plainName(cur.mt.b) + '. Comparen las imágenes con la referencia y voten desde su celular. ¿Quién ganará?'); }
         else if (s.phase === 'torneo') FX.say('Terminó ' + roundName(r, T) + '. Estos son todos los resultados de la ronda.');
       }
     }

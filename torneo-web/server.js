@@ -15,7 +15,7 @@ const EMOJI = ['🦊','🐼','🦁','🐯','🐸','🐵','🦄','🐙','🦉','�
 const COLORS = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#38d9a9','#4dabf7','#748ffc','#b197fc','#f783ac','#63e6be','#a9e34b','#ff8787'];
 
 const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 300, refDuration: 60, rounds: null,
-  third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, seq: 0,
+  third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, votes: {}, seq: 0,
   audio: { screenSound: true, screenVoice: true, phoneSound: true, phoneVoice: true } });
 
 let S = fresh();
@@ -25,10 +25,13 @@ try { S = Object.assign(fresh(), JSON.parse(fs.readFileSync(DATA, 'utf8'))); } c
 const clients = new Set();
 let saveTimer = null;
 function snapshot() {
-  const { undo, players, refs, ...pub } = S;
+  const { undo, players, refs, votes, ...pub } = S;
+  // Solo se publican los totales de votos, nunca quién votó por quién
+  const tally = {};
+  for (const [k, v] of Object.entries(votes || {})) { const t = { a: 0, b: 0 }; for (const side of Object.values(v)) t[side]++; tally[k] = t; }
   const shown = {};
   for (const [r, ref] of Object.entries(refs || {})) if (revealed(+r, true)) shown[r] = ref;
-  return JSON.stringify({ ...pub, refs: shown, players: players.map(({ token, rid, ...p }) => p), hasUndo: !!undo, boot: BOOT, now: Date.now() });
+  return JSON.stringify({ ...pub, tally, refs: shown, players: players.map(({ token, rid, ...p }) => p), hasUndo: !!undo, boot: BOOT, now: Date.now() });
 }
 function push() {
   S.seq++;
@@ -214,6 +217,7 @@ const ACTIONS = {
     Object.assign(S, JSON.parse(S.undo), { undo: null, event: null });
   },
   resetTournament() {
+    S.votes = {};
     clearImages(true); // conserva las referencias ya preparadas
     Object.assign(S, { phase: 'registro', regOpen: true, rounds: null, third: null, activeRound: -1, stage: null,
       drawAt: 0, event: null, phaseEvent: null, undo: null });
@@ -279,6 +283,17 @@ function revealed(r, forRef) {
 }
 const keyRound = k => k === 't' ? (S.rounds ? S.rounds.length - 1 : 99) : +k;
 
+// Duelo que se está mostrando en pantalla (mismo orden que la pantalla: 3.er puesto primero en la final)
+function currentDuelSrv() {
+  if (!S.rounds || S.activeRound < 0) return null;
+  const r = S.activeRound, T = S.rounds.length, list = [];
+  if (r === T - 1 && thirdPlayable()) list.push({ mt: S.third, key: 't' });
+  S.rounds[r].forEach(mt => { if (!mt.bye && mt.a && mt.b) list.push({ mt, key: String(r) }); });
+  const d = list.find(x => !x.mt.winner);
+  if (d) d.vkey = d.key + ':' + d.mt.a + ':' + d.mt.b;
+  return d || null;
+}
+
 // ------------------------------------------------------------ HTTP
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
@@ -327,6 +342,19 @@ http.createServer(async (req, res) => {
       const b = await readBody(req), rid = validRid(b.rid);
       const p = rid && S.players.find(x => x.rid === rid);
       return p ? json(res, 200, { ok: true, player: pub(p), seq: S.seq }) : json(res, 404, { error: 'Sin inscripción' });
+    }
+    if (req.method === 'POST' && url === '/api/vote') {
+      const b = await readBody(req);
+      const p = S.players.find(x => x.id === b.id);
+      if (!p || !p.token || typeof b.token !== 'string' || b.token !== p.token) fail('No encontramos tu inscripción en este dispositivo.');
+      const d = currentDuelSrv();
+      if (!d || S.phase !== 'torneo' || !S.stage || S.stage.name !== 'results') fail('La votación no está abierta en este momento.');
+      if (b.duel !== d.vkey) fail('Ese duelo ya terminó. Vota por el que está en pantalla.');
+      if (p.id === d.mt.a || p.id === d.mt.b) fail('No puedes votar en tu propio duelo.');
+      const side = b.side === 'b' ? 'b' : 'a';
+      S.votes[d.vkey] = Object.assign({}, S.votes[d.vkey], { [p.id]: side });
+      push();
+      return json(res, 200, { ok: true, side });
     }
     if (req.method === 'POST' && url === '/api/upload') {
       const b = await readBody(req, MAX_IMG * 1.4);
