@@ -227,16 +227,17 @@ function render(s) {
     $('liveHint').textContent = st === 'prep' ? 'Guarda la referencia de esta ronda abajo y pulsa "Mostrar referencia". Todos la verán durante ' + s.refDuration + ' s; luego se abre la carga por ' + s.duration + ' s.'
       : st === 'ref' ? 'Los estudiantes están viendo la referencia. Al terminar el tiempo se abre la carga de imágenes automáticamente.'
       : st === 'upload' ? 'Imágenes recibidas: ' + up + ' de ' + ids.length + '. Al terminar el tiempo se muestran los resultados; quien no suba imagen pierde.'
-      : 'Haz clic en el nombre del ganador de cada duelo. Los duelos donde nadie subió imagen también los decides tú.';
+      : (currentDuel(s) ? 'En pantalla: ' + currentDuel(s).label + ' (borde azul en las llaves). Haz clic en el nombre del ganador y la pantalla pasa a la siguiente llave.' : 'Ronda terminada. Inicia la siguiente fase cuando quieras.');
   }
   renderRefPanel(s);
 
-  // llaves: clic en el nombre del ganador
+  // llaves: clic en el nombre del ganador (solo la llave que está en pantalla)
+  const cur = st === 'results' ? currentDuel(s) : null;
   $('phases').innerHTML = !s.rounds ? '' : '<div class="bracket">' + s.rounds.map((rnd, r) => {
     const canStart = r === s.activeRound + 1 && (r === 0 || s.rounds[r - 1].every(m => m.winner));
     const active = r === s.activeRound && s.phase === 'torneo';
     const match = (mt, attr) => {
-      const open = active && st === 'results' && mt.a && mt.b && !mt.winner && !mt.bye;
+      const open = active && st === 'results' && cur && cur.mt === mt;
       const mk = mt.third ? 't' : String(r);
       const sl = k => {
         if (k === 'b' && mt.bye) return '<div class="s e"><span class="av ghost">·</span><span class="n">pasa directo</span></div>';

@@ -42,7 +42,7 @@ Dos cosas del plan gratuito que debes saber:
 4. Pulsa **Iniciar fase** y luego **Mostrar referencia**. Cada fase avanza sola:
    - **Referencia:** todos la ven en la pantalla y en su celular durante el tiempo configurado.
    - **Carga de imágenes:** la referencia se oculta y cada estudiante sube su imagen desde su celular.
-   - **Resultados:** aparecen las imágenes junto a la referencia. Quien no subió imagen pierde automáticamente; en los demás duelos haces clic en el nombre del ganador.
+   - **Resultados:** quien no subió imagen pierde automáticamente. La pantalla muestra los demás duelos uno por uno (imagen A, referencia, imagen B); haces clic en el nombre del ganador y pasa a la siguiente llave hasta terminar la ronda.
 5. Cuando todos los duelos de la fase tengan ganador, inicia la siguiente.
 6. En la fase final se juegan la final y el tercer y cuarto puesto con la misma referencia.
 

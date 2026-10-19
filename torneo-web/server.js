@@ -164,9 +164,8 @@ const ACTIONS = {
   },
   // Referencia de una ronda: texto y/o imagen que todos deben seguir
   setRef(b) {
-    if (!S.rounds) fail('Haz el sorteo primero; así se conocen las rondas.');
     const r = parseInt(b.r, 10);
-    if (!(r >= 0 && r < S.rounds.length)) fail('Ronda no válida.');
+    if (!(r >= 0 && r < (S.rounds ? S.rounds.length : 10))) fail('Ronda no válida.');
     if (r < S.activeRound || (r === S.activeRound && S.stage && S.stage.name !== 'prep')) fail('Esa ronda ya mostró su referencia.');
     const ref = Object.assign({ text: '', img: 0 }, S.refs[r]);
     if (b.text !== undefined) ref.text = String(b.text).slice(0, 2000);
@@ -208,7 +207,7 @@ const ACTIONS = {
     Object.assign(S, JSON.parse(S.undo), { undo: null, event: null });
   },
   resetTournament() {
-    clearImages();
+    clearImages(true); // conserva las referencias ya preparadas
     Object.assign(S, { phase: 'registro', regOpen: true, rounds: null, third: null, activeRound: -1, stage: null,
       drawAt: 0, event: null, phaseEvent: null, undo: null });
   },
@@ -235,9 +234,9 @@ const ACTIONS = {
 };
 
 // ------------------------------------------------------------ imágenes
-function clearImages() {
-  S.images = {}; S.refs = {};
-  try { for (const f of fs.readdirSync(IMG)) fs.unlinkSync(path.join(IMG, f)); } catch (e) {}
+function clearImages(keepRefs) {
+  S.images = {}; if (!keepRefs) S.refs = {};
+  try { for (const f of fs.readdirSync(IMG)) if (!(keepRefs && f.startsWith('ref_'))) fs.unlinkSync(path.join(IMG, f)); } catch (e) {}
 }
 function jpeg(dataUrl) {
   const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
