@@ -35,3 +35,25 @@ function podium(s) {
   else if (t) out.third = t.a || t.b;
   return out;
 }
+function stageLeft(s) { return s && s.stage && s.stage.endsAt ? Math.max(0, s.stage.endsAt - now()) : null; }
+const STAGE_NAME = { prep: 'Preparando', ref: 'Referencia', upload: 'Carga de imágenes', results: 'Resultados' };
+function refKey(s, key) { return key === 't' ? s.rounds.length - 1 : +key; }
+
+// Reduce la imagen y la convierte a JPEG antes de subirla
+function toJpeg(file) {
+  return new Promise((ok, bad) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const max = 1600, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      let q = .88, d = c.toDataURL('image/jpeg', q);
+      while (d.length > 3.5e6 && q > .4) { q -= .15; d = c.toDataURL('image/jpeg', q); }
+      ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); bad(new Error('No se pudo abrir esa imagen. Prueba con un JPG o PNG.')); };
+    img.src = url;
+  });
+}

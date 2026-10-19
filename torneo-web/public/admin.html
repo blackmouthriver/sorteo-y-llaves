@@ -48,6 +48,17 @@ ol li.out{opacity:.45}
 .tag.done{background:var(--winbg);color:var(--win)}
 .filebtn{display:inline-block;font-weight:600;border:1px solid var(--line);background:var(--panel2);padding:10px 16px;border-radius:6px;cursor:pointer}
 .filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+textarea{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);resize:vertical;width:100%}
+select{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.refrow{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.refprev{width:220px;max-width:100%;aspect-ratio:4/3;border:2px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--muted);text-align:center;font-size:.9rem;background:var(--panel2)}
+.refprev img{width:100%;height:100%;object-fit:contain;background:#fff}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps span{font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:4px 10px;border-radius:999px;background:var(--panel2);color:var(--muted)}
+.steps span.on{background:var(--gold);color:#201600}
+.steps span.past{background:var(--winbg);color:var(--win)}
+.cam{font-size:.8rem;color:var(--win);font-weight:700}
+.match .s .nx{font-size:.72rem;color:var(--bad);font-weight:700;text-transform:uppercase;text-decoration:none}
 #login{max-width:380px;margin:60px auto}
 code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhere}
 </style>
@@ -77,7 +88,8 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
       <div style="display:flex;flex-direction:column;gap:18px">
         <section class="panel">
           <h2>Configuración</h2>
-          <div class="field"><label for="dur">Tiempo por fase (segundos)</label><input id="dur" type="number" min="5" max="3600"></div>
+          <div class="field"><label for="refDur">Tiempo para ver la referencia (s)</label><input id="refDur" type="number" min="5" max="3600"></div>
+          <div class="field"><label for="dur">Tiempo para subir la imagen (s)</label><input id="dur" type="number" min="5" max="3600"></div>
           <div class="field"><label>Inscripciones</label><button id="reg" class="small"></button></div>
           <div><label>Link de inscripción</label><div class="row"><code id="link"></code><button id="copy" class="small">Copiar</button></div></div>
         </section>
@@ -94,12 +106,29 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
         <section class="panel live" id="live" hidden>
           <div class="k" id="liveK"></div>
           <div id="aclock"></div>
+          <div class="steps" id="steps"></div>
           <div class="row">
-            <button class="primary" id="tStart">▶ Iniciar tiempo</button>
-            <button id="tPause">⏸ Pausar</button>
-            <button id="tReset">↺ Reiniciar tiempo</button>
+            <button class="primary" id="sRef">▶ Mostrar referencia</button>
+            <button id="sUp">Abrir carga de imágenes</button>
+            <button class="primary" id="sRes">Cerrar carga y mostrar resultados</button>
+            <button id="sAdd">+30 s</button>
           </div>
-          <p class="muted" style="margin:0">Un solo cronómetro para todos los duelos de la fase. Haz clic en el nombre del ganador de cada duelo en las llaves.</p>
+          <p class="muted" id="liveHint" style="margin:0"></p>
+        </section>
+
+        <section class="panel" id="refPanel" hidden>
+          <div class="row" style="justify-content:space-between"><h2>Referencia de la ronda</h2>
+            <select id="refR" aria-label="Ronda"></select></div>
+          <p class="muted" style="margin:0">Imagen y/o texto que los estudiantes deben seguir. Solo se muestra cuando pulses "Mostrar referencia" en esa ronda.</p>
+          <textarea id="refText" rows="4" maxlength="2000" placeholder="Ej.: Genera una imagen de una ciudad futurista al atardecer, estilo acuarela…"></textarea>
+          <div class="refrow">
+            <div class="refprev" id="refPrev">Sin imagen de referencia</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label class="filebtn">Elegir imagen<input id="refFile" type="file" accept="image/*"></label>
+              <button id="refDel" class="small danger">Quitar imagen</button>
+            </div>
+          </div>
+          <div class="row"><button class="gold" id="refSave">Guardar referencia</button><span id="refMsg" class="ok" hidden></span></div>
         </section>
 
         <section class="panel">
@@ -162,6 +191,7 @@ function render(s) {
   } else $('backup').hidden = true;
 
   if (document.activeElement !== $('dur')) $('dur').value = s.duration;
+  if (document.activeElement !== $('refDur')) $('refDur').value = s.refDuration;
   $('reg').textContent = s.regOpen ? 'Abiertas · cerrar' : 'Cerradas · abrir';
   $('reg').disabled = s.phase !== 'registro';
   const lock = s.phase !== 'registro', lim = s.cupos ? Math.min(s.cupos, s.players.length) : s.players.length;
@@ -178,25 +208,42 @@ function render(s) {
   $('hint').textContent = s.phase === 'registro' ? 'Cuando estén todos inscritos, pulsa Sortear. El sorteo se muestra en vivo en la pantalla pública.'
     : s.phase === 'sorteo' ? 'Sorteo hecho. Cuando termine la animación en pantalla, inicia la primera fase.'
     : s.phase === 'fin' ? 'Torneo terminado. El podio está en pantalla.'
-    : 'Inicia el tiempo de la fase y haz clic en el nombre del ganador de cada duelo para que avance.';
+    : 'Cada fase: muestra la referencia, abre la carga de imágenes y, en resultados, haz clic en el nombre del ganador. Quien no sube imagen pierde automáticamente.';
 
   // cronómetro de la fase
-  const inPlay = s.phase === 'torneo' && !!s.timer;
-  $('live').hidden = !inPlay;
-  if (inPlay) { $('liveK').textContent = 'Fase en juego · ' + roundName(s.activeRound, T); $('tStart').disabled = s.timer.running; $('tPause').disabled = !s.timer.running; }
+  const st = s.phase === 'torneo' && s.stage ? s.stage.name : null;
+  $('live').hidden = !st;
+  if (st) {
+    $('liveK').textContent = 'Fase en juego · ' + roundName(s.activeRound, T);
+    const order = ['prep', 'ref', 'upload', 'results'], at = order.indexOf(st);
+    $('steps').innerHTML = order.map((n, i) => '<span class="' + (i === at ? 'on' : i < at ? 'past' : '') + '">' + (i + 1) + '. ' + STAGE_NAME[n] + '</span>').join('');
+    $('sRef').hidden = st !== 'prep'; $('sUp').hidden = !(st === 'prep' || st === 'ref'); $('sRes').hidden = st !== 'upload'; $('sAdd').hidden = !s.stage.endsAt;
+    $('sUp').textContent = st === 'ref' ? 'Pasar ya a la carga de imágenes' : 'Abrir carga sin referencia';
+    const keyNow = String(s.activeRound), mts = s.rounds[s.activeRound].filter(m => !m.bye && m.a && m.b);
+    if (s.third && s.third.a && s.third.b && s.activeRound === T - 1) mts.push(Object.assign({ key: 't' }, s.third));
+    const ids = mts.flatMap(m => [[m.a, m.key || keyNow], [m.b, m.key || keyNow]]), up = ids.filter(([id, k]) => s.images[id] && s.images[id][k]).length;
+    $('liveHint').textContent = st === 'prep' ? 'Guarda la referencia de esta ronda abajo y pulsa "Mostrar referencia". Todos la verán durante ' + s.refDuration + ' s; luego se abre la carga por ' + s.duration + ' s.'
+      : st === 'ref' ? 'Los estudiantes están viendo la referencia. Al terminar el tiempo se abre la carga de imágenes automáticamente.'
+      : st === 'upload' ? 'Imágenes recibidas: ' + up + ' de ' + ids.length + '. Al terminar el tiempo se muestran los resultados; quien no suba imagen pierde.'
+      : 'Haz clic en el nombre del ganador de cada duelo. Los duelos donde nadie subió imagen también los decides tú.';
+  }
+  renderRefPanel(s);
 
   // llaves: clic en el nombre del ganador
   $('phases').innerHTML = !s.rounds ? '' : '<div class="bracket">' + s.rounds.map((rnd, r) => {
     const canStart = r === s.activeRound + 1 && (r === 0 || s.rounds[r - 1].every(m => m.winner));
     const active = r === s.activeRound && s.phase === 'torneo';
     const match = (mt, attr) => {
-      const open = active && mt.a && mt.b && !mt.winner && !mt.bye;
+      const open = active && st === 'results' && mt.a && mt.b && !mt.winner && !mt.bye;
+      const mk = mt.third ? 't' : String(r);
       const sl = k => {
         if (k === 'b' && mt.bye) return '<div class="s e"><span class="av ghost">·</span><span class="n">pasa directo</span></div>';
         const p = player(mt[k]);
         if (!p) return '<div class="s e">' + avatar(null) + '<span class="n">por definir</span></div>';
         const c = mt.winner ? (mt.winner === k ? 'w' : 'l') : '';
-        const inner = avatar(p) + '<span class="n">' + esc(p.name) + '</span>' + (c === 'w' && !mt.bye ? '<span>✓</span>' : '');
+        const cam = active && s.images[p.id] && s.images[p.id][mk] ? '<span class="cam" title="Subió imagen">📷</span>' : '';
+        const nx = c === 'l' && mt.auto ? '<span class="nx">sin imagen</span>' : '';
+        const inner = avatar(p) + '<span class="n">' + esc(p.name) + '</span>' + cam + nx + (c === 'w' && !mt.bye ? '<span>✓</span>' : '');
         return open ? '<button type="button" class="s" ' + attr + ' data-side="' + k + '" title="Marcar a ' + esc(p.name) + ' como ganador">' + inner + '</button>' : '<div class="s ' + c + '">' + inner + '</div>';
       };
       return '<div class="match' + (open ? ' open' : '') + '">' + sl('a') + sl('b') + '</div>';
@@ -209,9 +256,53 @@ function render(s) {
       '</div></div>';
   }).join('') + '</div>';
 }
-setInterval(() => { if (STATE && STATE.timer) { const ms = remaining(STATE.timer); $('aclock').textContent = STATE.timer.running && ms <= 0 ? '¡Tiempo terminado!' : fmt(ms); } }, 200);
+setInterval(() => { if (!STATE || !STATE.stage) return; const ms = stageLeft(STATE); $('aclock').textContent = ms === null ? STAGE_NAME[STATE.stage.name] : fmt(ms); }, 200);
+
+// ---------- referencia por ronda
+let REFS = {}, refLoadedFor = '', refImgData = null, refDelImg = false, refPicked = '';
+async function loadRefs() { const r = await act('getRefs'); if (r) { REFS = r.refs || {}; fillRefForm(); } }
+function renderRefPanel(s) {
+  $('refPanel').hidden = !s.rounds || s.phase === 'fin';
+  if (!s.rounds) return;
+  const T = s.rounds.length, sig = T + ':' + s.activeRound + ':' + (s.stage ? s.stage.name : '');
+  const editable = [];
+  for (let r = 0; r < T; r++) if (r > s.activeRound || (r === s.activeRound && s.stage && s.stage.name === 'prep')) editable.push(r);
+  if (sig !== refLoadedFor) {
+    refLoadedFor = sig;
+    const cur = $('refR').value;
+    $('refR').innerHTML = editable.map(r => '<option value="' + r + '">' + roundName(r, T) + (r === T - 1 && T > 1 ? ' (y 3.er puesto)' : '') + '</option>').join('');
+    if (editable.includes(+cur) && cur !== '') $('refR').value = cur;
+    $('refPanel').hidden = !editable.length;
+    loadRefs();
+  }
+}
+function fillRefForm() {
+  const r = $('refR').value; if (r === '') return;
+  if (refPicked === r) return; // no pisar lo que el administrador está editando
+  const ref = REFS[r] || { text: '', img: 0 };
+  $('refText').value = ref.text || ''; refImgData = null; refDelImg = false;
+  $('refPrev').innerHTML = ref.img ? '<img alt="Referencia" src="/img/ref_' + r + '.jpg?v=' + ref.img + '&key=' + encodeURIComponent(KEYV) + '">' : 'Sin imagen de referencia';
+}
+$('refR').onchange = () => { refPicked = ''; fillRefForm(); };
+$('refText').oninput = () => { refPicked = $('refR').value; };
+$('refFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { refImgData = await toJpeg(f); refDelImg = false; refPicked = $('refR').value; $('refPrev').innerHTML = '<img alt="Referencia" src="' + refImgData + '">'; }
+  catch (err) { showErr(err.message); }
+};
+$('refDel').onclick = () => { refImgData = null; refDelImg = true; refPicked = $('refR').value; $('refPrev').textContent = 'Sin imagen de referencia'; };
+$('refSave').onclick = async () => {
+  const r = $('refR').value; if (r === '') return;
+  const body = { r, text: $('refText').value };
+  if (refImgData) body.image = refImgData; else if (refDelImg) body.removeImg = true;
+  $('refSave').disabled = true;
+  const ok = await act('setRef', body);
+  $('refSave').disabled = false;
+  if (ok) { refPicked = ''; $('refMsg').textContent = 'Referencia guardada.'; $('refMsg').hidden = false; setTimeout(() => { $('refMsg').hidden = true; }, 2500); loadRefs(); }
+};
 
 $('dur').addEventListener('change', e => act('config', { duration: e.target.value }));
+$('refDur').addEventListener('change', e => act('config', { refDuration: e.target.value }));
 $('reg').onclick = () => act('config', { regOpen: !STATE.regOpen });
 $('link').textContent = location.origin + '/';
 $('copy').onclick = () => navigator.clipboard.writeText(location.origin + '/').then(() => { $('copy').textContent = 'Copiado'; setTimeout(() => $('copy').textContent = 'Copiar', 1500); }).catch(() => {});
@@ -241,9 +332,10 @@ $('phases').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.start) act('startPhase'); else if (b.dataset.third) act('setWinner', { third: true, side: b.dataset.side }); else if (b.dataset.open) act('setWinner', { m: b.dataset.open, side: b.dataset.side });
 });
-$('tStart').onclick = () => act('timer', { cmd: 'start' });
-$('tPause').onclick = () => act('timer', { cmd: 'pause' });
-$('tReset').onclick = () => act('timer', { cmd: 'reset' });
+$('sRef').onclick = () => act('stage', { cmd: 'ref' });
+$('sUp').onclick = () => act('stage', { cmd: 'upload' });
+$('sRes').onclick = () => act('stage', { cmd: 'results' });
+$('sAdd').onclick = () => act('stage', { cmd: 'add30' });
 twoStep('reset', 'Reiniciar torneo (conserva inscritos)', () => act('resetTournament'));
 twoStep('wipe', 'Borrar todo', () => { try { localStorage.removeItem(BK); } catch (e) {} act('wipe'); });
 $('brestore').onclick = () => { try { act('restore', { state: JSON.parse(localStorage.getItem(BK)) }); } catch (e) {} };

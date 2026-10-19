@@ -37,10 +37,14 @@ Dos cosas del plan gratuito que debes saber:
 ## Cómo se dirige un torneo
 
 1. Proyecta `/pantalla` y pulsa "Activar sonido". Los concursantes se inscriben con el QR.
-2. En `/admin` ajusta el tiempo por fase. Cuando estén todos inscritos pulsa **Sortear**.
-3. Pulsa **Iniciar fase** y luego **Iniciar tiempo**: un solo cronómetro corre para todos los duelos de la fase. Al terminar, marca al ganador de cada duelo.
-4. Cuando todos los duelos de la fase tengan ganador, inicia la siguiente.
-5. En la fase final aparecen dos duelos: tercer y cuarto puesto (entre los perdedores de las semifinales) y la final.
+2. En `/admin` ajusta el tiempo para ver la referencia y el tiempo para subir la imagen. Cuando estén todos inscritos pulsa **Sortear**.
+3. En **Referencia de la ronda** escribe el texto y/o sube la imagen que deben seguir, y pulsa **Guardar referencia**. Puedes dejar listas las de todas las rondas desde el principio.
+4. Pulsa **Iniciar fase** y luego **Mostrar referencia**. Cada fase avanza sola:
+   - **Referencia:** todos la ven en la pantalla y en su celular durante el tiempo configurado.
+   - **Carga de imágenes:** la referencia se oculta y cada estudiante sube su imagen desde su celular.
+   - **Resultados:** aparecen las imágenes junto a la referencia. Quien no subió imagen pierde automáticamente; en los demás duelos haces clic en el nombre del ganador.
+5. Cuando todos los duelos de la fase tengan ganador, inicia la siguiente.
+6. En la fase final se juegan la final y el tercer y cuarto puesto con la misma referencia.
 
 No hay cupo fijo: el torneo se arma con todos los inscritos al momento del sorteo. Si el número no es potencia de 2 (por ejemplo 11), algunos pasan directo a la segunda ronda por sorteo.
 

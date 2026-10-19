@@ -14,8 +14,8 @@ const MAX_PLAYERS = 1000; // tope de seguridad; el torneo se arma con todos los 
 const EMOJI = ['🦊','🐼','🦁','🐯','🐸','🐵','🦄','🐙','🦉','🐨','🐰','🐻','🐶','🐱','🦖','🐢','🦋','🐝','🦀','🐬','🦈','🐳','🦩','🦜','🐧','🦅','🐺','🦝','🐮','🐷','🐹','🐔','🦆','🦚','🦔','🦦','🦥','🐘','🦒','🦓','🐊','🐍','🦎','🐞','🦂','🐲','👾','🤖','👽','🚀','⚡','🔥','🌟','🍀','🌵','🍄','🎸','🎯','🎲','🏀','⚽','🥑','🍉','🌶️'];
 const COLORS = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#38d9a9','#4dabf7','#748ffc','#b197fc','#f783ac','#63e6be','#a9e34b','#ff8787'];
 
-const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 60, rounds: null,
-  third: null, activeRound: -1, current: null, timer: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, seq: 0 });
+const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 180, refDuration: 60, rounds: null,
+  third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, seq: 0 });
 
 let S = fresh();
 try { S = Object.assign(fresh(), JSON.parse(fs.readFileSync(DATA, 'utf8'))); } catch (e) { /* primer arranque */ }
@@ -24,8 +24,10 @@ try { S = Object.assign(fresh(), JSON.parse(fs.readFileSync(DATA, 'utf8'))); } c
 const clients = new Set();
 let saveTimer = null;
 function snapshot() {
-  const { undo, players, ...pub } = S;
-  return JSON.stringify({ ...pub, players: players.map(({ token, ...p }) => p), hasUndo: !!undo, now: Date.now() });
+  const { undo, players, refs, ...pub } = S;
+  const shown = {};
+  for (const [r, ref] of Object.entries(refs || {})) if (revealed(+r, true)) shown[r] = ref;
+  return JSON.stringify({ ...pub, refs: shown, players: players.map(({ token, ...p }) => p), hasUndo: !!undo, now: Date.now() });
 }
 function push() {
   S.seq++;
@@ -77,15 +79,63 @@ function build(ids) {
 }
 
 const thirdPlayable = () => !!(S.third && S.third.a && S.third.b);
-const freshTimer = () => ({ running: false, remaining: S.duration * 1000, endsAt: 0 });
+const isFinal = r => S.rounds && r === S.rounds.length - 1;
+
+// ------------------------------------------------------------ etapas de cada fase
+// prep -> ref (todos ven la referencia) -> upload (suben su imagen) -> results (se muestran y se decide)
+function setStage(name, secs) {
+  S.stage = { name, endsAt: secs ? Date.now() + secs * 1000 : 0 };
+  if (name === 'results') autoResolve();
+}
+// Al cerrar la carga: quien no subió imagen pierde automáticamente.
+function autoResolve() {
+  const r = S.activeRound, list = S.rounds[r].map((mt, m) => ({ mt, m, key: String(r) }));
+  if (isFinal(r) && thirdPlayable()) list.push({ mt: S.third, third: true, key: 't' });
+  let snap = null;
+  for (const it of list) {
+    const mt = it.mt;
+    if (mt.winner || mt.bye || !mt.a || !mt.b) continue;
+    const ha = hasImg(mt.a, it.key), hb = hasImg(mt.b, it.key);
+    if (ha === hb) { mt.noImg = !ha; continue; } // ambos o ninguno: decide el administrador
+    if (!snap) snap = undoSnap();
+    decide(r, it.m, !!it.third, ha ? 'a' : 'b', true);
+  }
+  if (snap) { S.undo = snap; S.event = { id: S.seq + 1, type: 'auto' }; }
+}
+setInterval(() => {
+  if (S.phase === 'torneo' && S.stage && S.stage.endsAt && Date.now() >= S.stage.endsAt) {
+    if (S.stage.name === 'ref') setStage('upload', S.duration);
+    else if (S.stage.name === 'upload') setStage('results');
+    push();
+  }
+}, 500);
+
+const hasImg = (id, key) => !!(S.images[id] && S.images[id][key]);
+const undoSnap = () => JSON.stringify({ rounds: S.rounds, third: S.third, phase: S.phase });
+
+function decide(r, m, isThird, key, auto) {
+  const T = S.rounds.length, mt = isThird ? S.third : S.rounds[r][m];
+  mt.winner = key; if (auto) mt.auto = true;
+  const w = mt[key], l = mt[key === 'a' ? 'b' : 'a'];
+  let type = 'third';
+  if (!isThird) {
+    const slot = m % 2 ? 'b' : 'a';
+    type = r === T - 1 ? 'champion' : 'win';
+    if (r + 1 < T) S.rounds[r + 1][m >> 1][slot] = w;
+    if (r === T - 2) { S.third = S.third || { a: null, b: null, winner: null, third: true }; S.third[slot] = l; }
+  }
+  if (!auto) S.event = { id: S.seq + 1, type, winner: w, loser: l, r };
+  if (S.rounds[T - 1][0].winner && (!thirdPlayable() || S.third.winner)) S.phase = 'fin';
+}
 
 const ACTIONS = {
   login() {},
   config(b) {
-    if (b.duration !== undefined) {
-      const d = Math.round(Number(b.duration));
-      if (!(d >= 5 && d <= 3600)) fail('El tiempo debe estar entre 5 y 3600 segundos.');
-      S.duration = d;
+    for (const [f, label] of [['duration', 'subir la imagen'], ['refDuration', 'ver la referencia']]) {
+      if (b[f] === undefined) continue;
+      const d = Math.round(Number(b[f]));
+      if (!(d >= 5 && d <= 3600)) fail('El tiempo para ' + label + ' debe estar entre 5 y 3600 segundos.');
+      S[f] = d;
     }
     if (b.regOpen !== undefined) {
       if (b.regOpen && S.phase !== 'registro') fail('El registro solo se abre antes del sorteo.');
@@ -110,57 +160,57 @@ const ACTIONS = {
     const ids = S.players.map(p => p.id);
     if (ids.length < 2) fail('Se necesitan al menos 2 participantes.');
     Object.assign(S, { rounds: build(ids), phase: 'sorteo', regOpen: false, drawAt: Date.now(), third: null,
-      activeRound: -1, current: null, timer: null, event: null, phaseEvent: null, undo: null });
+      activeRound: -1, stage: null, event: null, phaseEvent: null, undo: null });
+  },
+  // Referencia de una ronda: texto y/o imagen que todos deben seguir
+  setRef(b) {
+    if (!S.rounds) fail('Haz el sorteo primero; así se conocen las rondas.');
+    const r = parseInt(b.r, 10);
+    if (!(r >= 0 && r < S.rounds.length)) fail('Ronda no válida.');
+    if (r < S.activeRound || (r === S.activeRound && S.stage && S.stage.name !== 'prep')) fail('Esa ronda ya mostró su referencia.');
+    const ref = Object.assign({ text: '', img: 0 }, S.refs[r]);
+    if (b.text !== undefined) ref.text = String(b.text).slice(0, 2000);
+    if (b.removeImg) { ref.img = 0; try { fs.unlinkSync(path.join(IMG, 'ref_' + r + '.jpg')); } catch (e) {} }
+    if (b.image) { fs.writeFileSync(path.join(IMG, 'ref_' + r + '.jpg'), jpeg(b.image)); ref.img = Date.now(); }
+    S.refs[r] = ref;
   },
   startPhase() {
     if (!S.rounds) fail('Primero haz el sorteo.');
     const r = S.activeRound + 1;
     if (r >= S.rounds.length) fail('Ya se inició la final.');
     if (r > 0 && S.rounds[r - 1].some(m => !m.winner)) fail('Aún faltan enfrentamientos por definir en la fase actual.');
-    S.activeRound = r; S.phase = 'torneo'; S.current = null; S.timer = freshTimer(); // un cronómetro para toda la fase
+    S.activeRound = r; S.phase = 'torneo'; setStage('prep');
     S.phaseEvent = { id: S.seq + 1, r };
   },
-  timer(b) {
-    if (S.phase !== 'torneo' || !S.timer) fail('Inicia la fase primero.');
-    const t = S.timer, now = Date.now();
-    if (b.cmd === 'start' && !t.running) {
-      if (t.remaining <= 0) t.remaining = S.duration * 1000;
-      t.endsAt = now + t.remaining; t.running = true;
-    } else if (b.cmd === 'pause' && t.running) {
-      t.remaining = Math.max(0, t.endsAt - now); t.running = false;
-    } else if (b.cmd === 'reset') S.timer = freshTimer();
+  stage(b) {
+    if (S.phase !== 'torneo' || !S.stage) fail('Inicia la fase primero.');
+    const st = S.stage.name;
+    if (b.cmd === 'ref' && st === 'prep') {
+      const ref = S.refs[S.activeRound];
+      if (!ref || (!ref.text && !ref.img)) fail('Primero guarda la referencia (texto o imagen) de esta ronda.');
+      setStage('ref', S.refDuration);
+    } else if (b.cmd === 'upload' && (st === 'prep' || st === 'ref')) setStage('upload', S.duration);
+    else if (b.cmd === 'results' && st === 'upload') setStage('results');
+    else if (b.cmd === 'add30' && S.stage.endsAt) S.stage.endsAt += 30000;
+    else fail('Esa acción no aplica en esta etapa.');
   },
   setWinner(b) {
-    if (S.phase !== 'torneo') fail('Inicia la fase primero.');
+    if (S.phase !== 'torneo' || !S.stage || S.stage.name !== 'results') fail('Primero cierra la carga de imágenes para ver los resultados.');
     const T = S.rounds.length, r = S.activeRound, isThird = !!b.third, m = parseInt(b.m, 10);
     if (isThird && (r !== T - 1 || !thirdPlayable())) fail('El duelo por el tercer puesto se juega en la fase final.');
     const mt = isThird ? S.third : S.rounds[r][m];
     if (!mt || !mt.a || !mt.b || mt.winner) fail('Ese enfrentamiento no se puede definir ahora.');
-    const key = b.side === 'b' ? 'b' : 'a';
-    S.undo = JSON.stringify({ rounds: S.rounds, third: S.third, phase: S.phase });
-    mt.winner = key;
-    const w = mt[key], l = mt[key === 'a' ? 'b' : 'a'];
-    let type = 'third';
-    if (!isThird) {
-      const slot = m % 2 ? 'b' : 'a';
-      type = r === T - 1 ? 'champion' : 'win';
-      if (r + 1 < T) S.rounds[r + 1][m >> 1][slot] = w;
-      if (r === T - 2) { S.third = S.third || { a: null, b: null, winner: null, third: true }; S.third[slot] = l; }
-    }
-    S.event = { id: S.seq + 1, type, winner: w, loser: l, r };
-    const phaseDone = S.rounds[r].every(x => x.winner) && (r !== T - 1 || !thirdPlayable() || S.third.winner);
-    if (phaseDone && S.timer && S.timer.running) { S.timer.remaining = Math.max(0, S.timer.endsAt - Date.now()); S.timer.running = false; }
-    if (S.rounds[T - 1][0].winner && (!thirdPlayable() || S.third.winner)) S.phase = 'fin';
+    S.undo = undoSnap();
+    decide(r, m, isThird, b.side === 'b' ? 'b' : 'a', false);
   },
   undo() {
     if (!S.undo) fail('No hay un resultado para deshacer.');
     Object.assign(S, JSON.parse(S.undo), { undo: null, event: null });
-    if (!S.timer) S.timer = freshTimer();
   },
   resetTournament() {
     clearImages();
-    Object.assign(S, { phase: 'registro', regOpen: true, rounds: null, third: null, activeRound: -1, current: null,
-      timer: null, drawAt: 0, event: null, phaseEvent: null, undo: null });
+    Object.assign(S, { phase: 'registro', regOpen: true, rounds: null, third: null, activeRound: -1, stage: null,
+      drawAt: 0, event: null, phaseEvent: null, undo: null });
   },
   wipe() { clearImages(); const seq = S.seq; S = fresh(); S.seq = seq; },
   // Recupera el torneo desde la copia que guarda el navegador del administrador (por si el servidor se reinicia).
@@ -169,43 +219,59 @@ const ACTIONS = {
     if (!d || !Array.isArray(d.players) || d.players.length > MAX_PLAYERS) fail('Copia de respaldo inválida.');
     const base = fresh();
     for (const k of Object.keys(base)) if (k !== 'undo' && k !== 'seq' && d[k] !== undefined) base[k] = d[k];
-    base.seq = S.seq; base.current = null; base.timer = null; base.event = null; base.phaseEvent = null;
+    base.seq = S.seq; base.event = null; base.phaseEvent = null;
     const imgs = {};
     for (const [pid, keys] of Object.entries(base.images || {}))
       for (const [k, v] of Object.entries(keys || {}))
         if (/^[a-f0-9]{12}$/.test(pid) && /^(\d+|t)$/.test(k) && fs.existsSync(path.join(IMG, pid + '_' + k + '.jpg'))) (imgs[pid] = imgs[pid] || {})[k] = v;
     base.images = imgs;
+    const refs = {};
+    for (const [r, ref] of Object.entries(S.refs || {})) refs[r] = ref; // la copia del navegador no trae referencias ocultas
+    base.refs = refs;
     S = base;
-    S.timer = S.phase === 'torneo' ? freshTimer() : null;
+    if (S.phase === 'torneo' && (!S.stage || S.stage.endsAt)) setStage(S.stage && S.stage.name === 'results' ? 'results' : 'prep');
   },
+  getRefs() { return { refs: S.refs }; },
 };
 
-// ------------------------------------------------------------ imágenes de los concursantes
+// ------------------------------------------------------------ imágenes
 function clearImages() {
-  S.images = {};
+  S.images = {}; S.refs = {};
   try { for (const f of fs.readdirSync(IMG)) fs.unlinkSync(path.join(IMG, f)); } catch (e) {}
 }
-// Duelo pendiente del concursante: clave de ronda ("0", "1"... o "t" para tercer puesto)
-function pendingKey(id) {
-  if (!S.rounds) return null;
-  for (let r = 0; r < S.rounds.length; r++)
-    for (const mt of S.rounds[r]) if ((mt.a === id || mt.b === id) && !mt.winner && !mt.bye) return String(r);
-  if (S.third && !S.third.winner && (S.third.a === id || S.third.b === id)) return 't';
+function jpeg(dataUrl) {
+  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) fail('Formato de imagen no válido.');
+  const buf = Buffer.from(m[1], 'base64');
+  if (buf.length > MAX_IMG || buf[0] !== 0xff || buf[1] !== 0xd8) fail('La imagen no es válida o pesa demasiado.');
+  return buf;
+}
+// Duelo del concursante en la fase activa: "0", "1"... o "t" para tercer puesto
+function activeKey(id) {
+  if (!S.rounds || S.activeRound < 0) return null;
+  const r = S.activeRound;
+  for (const mt of S.rounds[r]) if ((mt.a === id || mt.b === id) && !mt.winner && !mt.bye) return String(r);
+  if (isFinal(r) && S.third && !S.third.winner && (S.third.a === id || S.third.b === id)) return 't';
   return null;
 }
 function uploadImage(b) {
   const p = S.players.find(x => x.id === b.id);
   if (!p || !p.token || typeof b.token !== 'string' || b.token !== p.token) fail('No encontramos tu inscripción en este dispositivo.');
-  const key = pendingKey(p.id);
-  if (key === null) fail(S.rounds ? 'No tienes un duelo pendiente para subir imagen.' : 'Podrás subir tu imagen cuando se haga el sorteo.');
-  const m = /^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/.exec(String(b.image || ''));
-  if (!m) fail('Formato de imagen no válido.');
-  const buf = Buffer.from(m[1], 'base64');
-  if (buf.length > MAX_IMG || buf[0] !== 0xff || buf[1] !== 0xd8) fail('La imagen no es válida o pesa demasiado.');
-  fs.writeFileSync(path.join(IMG, p.id + '_' + key + '.jpg'), buf);
+  if (S.phase !== 'torneo' || !S.stage || S.stage.name !== 'upload') fail('La carga de imágenes no está abierta en este momento.');
+  const key = activeKey(p.id);
+  if (key === null) fail('No tienes un duelo en esta fase.');
+  fs.writeFileSync(path.join(IMG, p.id + '_' + key + '.jpg'), jpeg(b.image));
   S.images[p.id] = Object.assign({}, S.images[p.id], { [key]: Date.now() });
   return key;
 }
+// ¿Ya se puede mostrar el contenido de la ronda r a todos?
+function revealed(r, forRef) {
+  if (S.phase === 'fin') return true;
+  if (r < S.activeRound) return true;
+  if (r > S.activeRound || !S.stage) return false;
+  return S.stage.name === 'results' || (forRef && S.stage.name === 'ref');
+}
+const keyRound = k => k === 't' ? (S.rounds ? S.rounds.length - 1 : 99) : +k;
 
 // ------------------------------------------------------------ HTTP
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -251,16 +317,20 @@ http.createServer(async (req, res) => {
       return json(res, 200, { ok: true, key });
     }
     if (req.method === 'GET' && url.startsWith('/img/')) {
-      const name = url.slice(5);
-      if (!/^[a-f0-9]{12}_(\d+|t)\.jpg$/.test(name)) return json(res, 404, { error: 'No encontrado' });
+      const name = url.slice(5), q = new URLSearchParams(req.url.split('?')[1] || '');
+      const mp = /^([a-f0-9]{12})_(\d+|t)\.jpg$/.exec(name), mr = /^ref_(\d+)\.jpg$/.exec(name);
+      if (!mp && !mr) return json(res, 404, { error: 'No encontrado' });
+      const owner = mp && S.players.find(p => p.id === mp[1]);
+      const ok = sameKey(q.get('key')) || (mr ? revealed(+mr[1], true) : (revealed(keyRound(mp[2])) || (owner && owner.token && q.get('tk') === owner.token)));
+      if (!ok) { res.writeHead(403); return res.end(); }
       return fs.readFile(path.join(IMG, name), (err, buf) => {
         if (err) { res.writeHead(404); return res.end(); }
-        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+        res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400' });
         res.end(buf);
       });
     }
     if (req.method === 'POST' && url === '/api/admin') {
-      const b = await readBody(req);
+      const b = await readBody(req, MAX_IMG * 1.4);
       if (!sameKey(b.key)) return json(res, 401, { error: 'Clave de administrador incorrecta.' });
       const fn = Object.prototype.hasOwnProperty.call(ACTIONS, b.action) && ACTIONS[b.action];
       if (!fn) fail('Acción desconocida.');

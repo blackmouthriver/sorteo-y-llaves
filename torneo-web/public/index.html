@@ -32,6 +32,8 @@ form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase
 .pick{display:block;text-align:center;font-family:var(--display);font-size:1.4rem;text-transform:uppercase;letter-spacing:.04em;background:var(--accent);color:#fff;border-radius:6px;padding:12px;cursor:pointer}
 .pick input{position:absolute;opacity:0;width:1px;height:1px}
 .pick.busy{opacity:.5;pointer-events:none}
+.cnt{font-family:var(--display);font-size:1.8rem;color:var(--gold-ink);font-variant-numeric:tabular-nums}
+.reftxt{margin:0;font-size:1.15rem;white-space:pre-wrap;background:var(--gold-soft);border-radius:8px;padding:12px 14px}
 .rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.2rem;margin-top:8px}
 </style>
 </head>
@@ -50,9 +52,14 @@ form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase
   <div class="me" id="me" hidden></div>
   <div class="ronda" id="ronda" hidden><span class="muted">Tu ronda</span><b id="rondaTxt"></b></div>
   <div class="status" id="status" hidden></div>
+  <section class="up" id="refBox" hidden>
+    <div class="row" style="justify-content:space-between"><h2 id="refTitle">Referencia</h2><b class="cnt" id="refClock"></b></div>
+    <div class="prev has" id="refImg" hidden></div>
+    <p class="reftxt" id="refTxt" hidden></p>
+  </section>
   <section class="up" id="up" hidden>
-    <h2 id="upTitle">Tu imagen</h2>
-    <p class="muted" style="margin:0">Sube la imagen que generaste con tu prompt. Se mostrará en la pantalla principal al lado de la de tu rival. Puedes cambiarla hasta que se defina el duelo.</p>
+    <div class="row" style="justify-content:space-between"><h2 id="upTitle">Tu imagen</h2><b class="cnt" id="upClock"></b></div>
+    <p class="muted" style="margin:0">Sube la imagen que generaste con tu prompt antes de que termine el tiempo. Puedes cambiarla mientras la carga esté abierta. <strong>Si no subes imagen, pierdes el duelo.</strong></p>
     <div class="prev" id="prev">Aún no has subido imagen para esta ronda</div>
     <label class="pick" id="pick"><span id="pickTxt">Subir imagen</span><input id="file" type="file" accept="image/*"></label>
     <div id="upMsg" hidden></div>
@@ -77,23 +84,28 @@ function status(s, me) {
   if (pod.second === me.id) return { cls: 'gold', big: '🥈 ¡Subcampeón!', txt: 'Llegaste a la final. ¡Qué torneo tan grande hiciste!' };
   if (pod.third === me.id) return { cls: 'gold', big: '🥉 ¡Tercer puesto!', txt: '¡Felicitaciones! Te subes al podio.' };
   if (pod.fourth === me.id) return { cls: '', big: 'Cuarto puesto', txt: 'Estuviste entre los cuatro mejores. ¡Gran torneo!' };
-  let pending = null, lost = false, wins = 0, where = '';
+  let pending = null, lost = false, wins = 0, where = '', autoLost = false;
   s.rounds.forEach((rnd, r) => rnd.forEach((mt, m) => {
     if (mt.a !== me.id && mt.b !== me.id) return;
     const mine = mt.a === me.id ? 'a' : 'b';
     if (!mt.winner) { pending = { mt, mine, label: roundName(r, T), cur: s.phase === 'torneo' && s.activeRound === r }; }
     else if (mt.winner === mine) { if (!mt.bye) wins++; }
-    else { lost = true; where = roundName(r, T); }
+    else { lost = true; where = roundName(r, T); autoLost = !!mt.auto; }
   }));
   const t = s.third;
   if (t && !t.winner && t.a && t.b && (t.a === me.id || t.b === me.id))
     pending = { mt: t, mine: t.a === me.id ? 'a' : 'b', label: 'Tercer y cuarto puesto', cur: s.phase === 'torneo' && s.activeRound === T - 1 };
   if (pending) RONDA = pending.label; else if (lost) RONDA = 'Eliminado en ' + where;
-  if (!pending && lost) return { cls: '', big: 'Hasta aquí llegaste', txt: 'Quedaste eliminado en ' + where + '. ' + CONSUELO[me.id.charCodeAt(0) % CONSUELO.length] };
+  if (!pending && lost) return { cls: '', big: 'Hasta aquí llegaste', txt: 'Quedaste eliminado en ' + where + (autoLost ? ' por no subir tu imagen a tiempo' : '') + '. ' + CONSUELO[me.id.charCodeAt(0) % CONSUELO.length] };
   if (!pending) return { cls: '', big: 'En lista de espera', txt: 'No alcanzaste cupo en este torneo. ¡Acompaña desde la tribuna!' };
   const rival = player(pending.mt[pending.mine === 'a' ? 'b' : 'a']);
   const rivalHtml = rival ? '<div class="rival">Tu rival: ' + avatar(rival) + esc(rival.name) + '</div>' : '<div class="rival muted">Tu rival aún no se define</div>';
-  if (pending.cur) return { cls: 'gold', big: '¡Tu duelo está en juego!', txt: pending.label + rivalHtml + '<span class="clock" id="clock"></span>', html: true };
+  if (pending.cur) {
+    const st = s.stage ? s.stage.name : 'prep';
+    const msg = { prep: 'Prepárate: en un momento verás la referencia de esta ronda.', ref: 'Observa la referencia: luego tendrás que subir tu imagen.',
+      upload: '¡Sube tu imagen ahora!', results: 'Las imágenes están en pantalla. El jurado está decidiendo.' }[st];
+    return { cls: 'gold', big: '¡Tu duelo está en juego!', txt: esc(pending.label + ' · ' + msg) + rivalHtml, html: true };
+  }
   const pre = wins ? '🎉 ¡Felicitaciones, avanzaste! ' : '';
   return { cls: wins ? 'good' : '', big: pending.label, txt: pre + 'Espera a que te llamen a la pantalla.' + rivalHtml, html: true };
 }
@@ -116,20 +128,38 @@ function render(s) {
 }
 
 // ---------- imagen del duelo
-function pendingKey(s, id) {
-  if (!s.rounds) return null;
-  for (let r = 0; r < s.rounds.length; r++) for (const mt of s.rounds[r]) if ((mt.a === id || mt.b === id) && !mt.winner && !mt.bye) return String(r);
-  if (s.third && !s.third.winner && (s.third.a === id || s.third.b === id)) return 't';
+function activeKey(s, id) {
+  if (!s.rounds || s.activeRound < 0 || s.phase !== 'torneo') return null;
+  const r = s.activeRound;
+  for (const mt of s.rounds[r]) if ((mt.a === id || mt.b === id) && !mt.winner && !mt.bye) return String(r);
+  if (r === s.rounds.length - 1 && s.third && !s.third.winner && (s.third.a === id || s.third.b === id)) return 't';
   return null;
 }
-let shownImg = '';
+let shownRef = '';
+function renderRef(s) {
+  const st = s.stage && s.stage.name, ref = s.refs && s.refs[s.activeRound];
+  const show = s.phase === 'torneo' && ref && (st === 'ref' || st === 'results');
+  $('refBox').hidden = !show;
+  if (!show) return;
+  $('refTitle').textContent = 'Referencia · ' + roundName(s.activeRound, s.rounds.length);
+  const sig = s.activeRound + ':' + ref.img + ':' + ref.text;
+  if (sig !== shownRef) {
+    shownRef = sig;
+    $('refImg').hidden = !ref.img;
+    $('refImg').innerHTML = ref.img ? '<img alt="Imagen de referencia" src="/img/ref_' + s.activeRound + '.jpg?v=' + ref.img + '">' : '';
+    $('refTxt').hidden = !ref.text; $('refTxt').textContent = ref.text || '';
+  }
+}
+let shownImg = '', lastUpKey = '';
 function renderUpload(s, me) {
-  const key = pendingKey(s, me.id);
+  renderRef(s);
+  const key = s.stage && s.stage.name === 'upload' ? activeKey(s, me.id) : null;
   $('up').hidden = key === null;
   if (key === null) return;
+  if (key + s.activeRound !== lastUpKey) { lastUpKey = key + s.activeRound; upMsg(''); }
   $('upTitle').textContent = 'Tu imagen · ' + (key === 't' ? 'Tercer y cuarto puesto' : roundName(+key, s.rounds.length));
   const v = s.images && s.images[me.id] && s.images[me.id][key];
-  const src = v ? '/img/' + me.id + '_' + key + '.jpg?v=' + v : '';
+  const src = v ? '/img/' + me.id + '_' + key + '.jpg?v=' + v + '&tk=' + encodeURIComponent(myToken || '') : '';
   if (src !== shownImg) {
     shownImg = src;
     $('prev').className = 'prev' + (src ? ' has' : '');
@@ -139,23 +169,6 @@ function renderUpload(s, me) {
   if (!myToken) { $('pick').hidden = true; upMsg('Tu inscripción se hizo desde otro dispositivo o la hizo el administrador. Abre esta página en el celular con el que te inscribiste.', true); }
 }
 function upMsg(t, bad) { $('upMsg').textContent = t; $('upMsg').className = bad ? 'err' : 'ok'; $('upMsg').hidden = !t; }
-function toJpeg(file) {
-  return new Promise((ok, bad) => {
-    const url = URL.createObjectURL(file), img = new Image();
-    img.onload = () => {
-      const max = 1600, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-      const c = document.createElement('canvas');
-      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
-      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      let q = .88, d = c.toDataURL('image/jpeg', q);
-      while (d.length > 3.5e6 && q > .4) { q -= .15; d = c.toDataURL('image/jpeg', q); }
-      ok(d);
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); bad(new Error('No se pudo abrir esa imagen. Prueba con un JPG o PNG.')); };
-    img.src = url;
-  });
-}
 $('file').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
@@ -163,11 +176,11 @@ $('file').addEventListener('change', async e => {
   try {
     const image = await toJpeg(f);
     await post('/api/upload', { id: myId, token: myToken, image });
-    upMsg('¡Imagen subida! Se verá en la pantalla principal durante tu duelo.');
+    upMsg('¡Imagen recibida! Se mostrará en la pantalla cuando termine el tiempo de carga.');
   } catch (err) { upMsg(err.message, true); }
   $('pick').classList.remove('busy');
 });
-setInterval(() => { const c = $('clock'); if (c && STATE && STATE.timer) { const ms = remaining(STATE.timer); c.textContent = ms <= 0 && STATE.timer.running ? '¡Tiempo!' : fmt(ms); } }, 200);
+setInterval(() => { if (!STATE) return; const ms = stageLeft(STATE), t = ms === null ? '' : ms <= 0 ? '¡Tiempo!' : fmt(ms); $('refClock').textContent = t; $('upClock').textContent = t; }, 200);
 
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
