@@ -48,9 +48,10 @@ Dos cosas del plan gratuito que debes saber:
 
 ## Sonido y voz
 
-- En `/pantalla` pulsa **Activar sonido y voz**. Puedes apagar el sonido o la voz y elegir la voz del narrador.
+- Sonidos y voz vienen encendidos. En `/admin` > Configuración > **Sonido y voz** puedes apagarlos por separado para la pantalla principal y para los celulares.
+- En `/pantalla` haz un clic en **Clic aquí para habilitar sonido y voz** (el navegador lo exige) y, si quieres, elige otra voz del narrador.
 - Para una voz masculina natural, abre la pantalla en **Microsoft Edge** y elige una voz "Natural" (por ejemplo Gonzalo, de Colombia, o Jorge, de México). Chrome solo trae voces más robóticas.
-- En el celular, el sonido se activa al inscribirse o con el botón **Activar sonido y voz**. La voz depende del teléfono.
+- En el celular, el sonido se habilita al inscribirse; si recarga la página, aparece un botón para tocar. La voz depende del teléfono.
 
 No hay cupo fijo: el torneo se arma con todos los inscritos al momento del sorteo. Si el número no es potencia de 2 (por ejemplo 11), algunos pasan directo a la segunda ronda por sorteo.
 

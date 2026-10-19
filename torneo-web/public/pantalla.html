@@ -121,10 +121,8 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 <body>
 <header>
   <h1>Torneo de <span>Prompts</span> TEINCO 2026</h1>
-  <div class="row"><span id="phase"></span><button id="sound" class="small gold">🔇 Activar sonido y voz</button>
+  <div class="row"><span id="phase"></span><button id="sound" class="small gold">🔊 Clic aquí para habilitar sonido y voz</button>
     <span class="fxbar" id="fxbar" hidden>
-      <label><input type="checkbox" id="fxSnd" checked> Sonido</label>
-      <label><input type="checkbox" id="fxVoz" checked> Voz</label>
       <select id="fxVoice" aria-label="Voz del narrador"></select>
       <button id="fxTest" class="small">Probar voz</button>
     </span></div>
@@ -163,9 +161,6 @@ $('sound').onclick = () => {
   FX.play('chime');
   FX.say('Sonido activado. Bienvenidos al Torneo de Prompts TEINCO 2026.', { flush: true });
 };
-$('fxSnd').checked = FX.state.sound; $('fxVoz').checked = FX.state.voice;
-$('fxSnd').onchange = e => FX.setSound(e.target.checked);
-$('fxVoz').onchange = e => FX.setVoiceOn(e.target.checked);
 $('fxVoice').onchange = e => { FX.setVoice(e.target.value); FX.say('Hola, esta es la voz del narrador del torneo.', { flush: true }); };
 $('fxTest').onclick = () => FX.say('Hola, esta es la voz del narrador del torneo.', { flush: true });
 FX.onVoices(() => {
@@ -413,6 +408,7 @@ function announce(s) {
 }
 
 connect(s => {
+  if (s.audio) FX.configure({ sound: s.audio.screenSound, voice: s.audio.screenVoice });
   if (first) { first = false; lastEvent = s.event && s.event.id; lastPhase = s.phaseEvent && s.phaseEvent.id; s.players.forEach(p => seen.add(p.id)); if (s.stage && s.stage.endsAt && stageLeft(s) <= 0) endedFor = s.stage.endsAt; }
   const isFirst = !lastStageKey && !lastDuelKey;
   if (isFirst) { lastStageKey = s.phase === 'torneo' && s.stage ? s.activeRound + ':' + s.stage.name : s.phase; const c = currentDuel(s); lastDuelKey = c ? s.activeRound + ':' + c.key + ':' + c.mt.a + c.mt.b : s.activeRound + ':fin'; }

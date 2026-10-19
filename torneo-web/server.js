@@ -15,7 +15,8 @@ const EMOJI = ['🦊','🐼','🦁','🐯','🐸','🐵','🦄','🐙','🦉','�
 const COLORS = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#38d9a9','#4dabf7','#748ffc','#b197fc','#f783ac','#63e6be','#a9e34b','#ff8787'];
 
 const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 300, refDuration: 60, rounds: null,
-  third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, seq: 0 });
+  third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, seq: 0,
+  audio: { screenSound: true, screenVoice: true, phoneSound: true, phoneVoice: true } });
 
 let S = fresh();
 try { S = Object.assign(fresh(), JSON.parse(fs.readFileSync(DATA, 'utf8'))); } catch (e) { /* primer arranque */ }
@@ -139,6 +140,10 @@ const ACTIONS = {
       if (!(d >= 30 && d <= 7200)) fail('El tiempo para ' + label + ' debe estar entre 0,5 y 120 minutos.');
       S[f] = d;
     }
+    if (b.audio && typeof b.audio === 'object') {
+      S.audio = Object.assign({}, fresh().audio, S.audio);
+      for (const k of ['screenSound', 'screenVoice', 'phoneSound', 'phoneVoice']) if (typeof b.audio[k] === 'boolean') S.audio[k] = b.audio[k];
+    }
     if (b.regOpen !== undefined) {
       if (b.regOpen && S.phase !== 'registro') fail('El registro solo se abre antes del sorteo.');
       S.regOpen = !!b.regOpen;
@@ -213,7 +218,7 @@ const ACTIONS = {
     Object.assign(S, { phase: 'registro', regOpen: true, rounds: null, third: null, activeRound: -1, stage: null,
       drawAt: 0, event: null, phaseEvent: null, undo: null });
   },
-  wipe() { clearImages(); const seq = S.seq; S = fresh(); S.seq = seq; },
+  wipe() { clearImages(); const seq = S.seq, audio = S.audio, d = S.duration, rd = S.refDuration; S = fresh(); Object.assign(S, { seq, audio, duration: d, refDuration: rd }); },
   // Recupera el torneo desde la copia que guarda el navegador del administrador (por si el servidor se reinicia).
   restore(b) {
     const d = b.state;

@@ -3,7 +3,8 @@
 const FX = (() => {
   let ac = null, master = null, voices = [], voice = null;
   const store = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
-  const state = { sound: store('fx-sound') !== '0', voice: store('fx-voice') !== '0', unlocked: false };
+  // Encendido por defecto; el administrador decide desde su panel (FX.configure)
+  const state = { sound: true, voice: true, unlocked: false };
 
   // ---------- síntesis
   function unlock() {
@@ -100,8 +101,13 @@ const FX = (() => {
     get voices() { return voices; }, get voice() { return voice; },
     onVoices(f) { listeners.push(f); f(); },
     setVoice(name) { voice = voices.find(v => v.name === name) || voice; store('fx-voice-name', name); },
-    setSound(on) { state.sound = on; store('fx-sound', on ? '1' : '0'); },
-    setVoiceOn(on) { state.voice = on; store('fx-voice', on ? '1' : '0'); if (!on && 'speechSynthesis' in window) speechSynthesis.cancel(); },
+    configure(o) {
+      if (!o) return;
+      state.sound = o.sound !== false;
+      const v = o.voice !== false;
+      if (state.voice && !v && 'speechSynthesis' in window) speechSynthesis.cancel();
+      state.voice = v;
+    },
     isMale: v => !!v && MALE.test(v.name) && !FEMALE.test(v.name),
   };
 })();

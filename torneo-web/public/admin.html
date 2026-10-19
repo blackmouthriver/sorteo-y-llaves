@@ -48,6 +48,10 @@ ol li.out{opacity:.45}
 .tag{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:4px;background:var(--panel2);color:var(--muted)}
 .tag.done{background:var(--winbg);color:var(--win)}
 .filebtn{display:inline-block;font-weight:600;border:1px solid var(--line);background:var(--panel2);padding:10px 16px;border-radius:6px;cursor:pointer}
+.audio{display:flex;flex-direction:column;gap:6px}
+.agrid{display:grid;grid-template-columns:1fr auto auto;gap:6px 16px;align-items:center;font-size:.95rem}
+.agrid input{width:20px;height:20px;justify-self:center;accent-color:var(--win)}
+.agrid .muted{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;justify-self:center}
 .filebtn input{position:absolute;opacity:0;width:1px;height:1px}
 textarea{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);resize:vertical;width:100%}
 select{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
@@ -92,6 +96,12 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
           <div class="field"><label for="refDur">Configuración de tiempo para mostrar la referencia de ronda a los participantes (minutos)</label><input id="refDur" type="number" min="0.5" max="120" step="0.5"></div>
           <div class="field"><label for="dur">Configuración de tiempo de duración de ronda (minutos)</label><input id="dur" type="number" min="0.5" max="120" step="0.5"></div>
           <div class="field"><label>Inscripciones</label><button id="reg" class="small"></button></div>
+          <div class="audio"><label>Sonido y voz</label>
+            <div class="agrid">
+              <span></span><span class="muted">Sonidos</span><span class="muted">Voz</span>
+              <span>Pantalla principal</span><input type="checkbox" id="aSS" aria-label="Sonidos en pantalla"><input type="checkbox" id="aSV" aria-label="Voz en pantalla">
+              <span>Celulares</span><input type="checkbox" id="aPS" aria-label="Sonidos en celulares"><input type="checkbox" id="aPV" aria-label="Voz en celulares">
+            </div></div>
           <div><label>Link de inscripción</label><div class="row"><code id="link"></code><button id="copy" class="small">Copiar</button></div></div>
         </section>
         <section class="panel">
@@ -196,6 +206,8 @@ function render(s) {
 
   if (document.activeElement !== $('dur')) $('dur').value = +(s.duration / 60).toFixed(2);
   if (document.activeElement !== $('refDur')) $('refDur').value = +(s.refDuration / 60).toFixed(2);
+  const au = s.audio || {};
+  [['aSS', 'screenSound'], ['aSV', 'screenVoice'], ['aPS', 'phoneSound'], ['aPV', 'phoneVoice']].forEach(([id, k]) => { $(id).checked = au[k] !== false; });
   $('reg').textContent = s.regOpen ? 'Abiertas · cerrar' : 'Cerradas · abrir';
   $('reg').disabled = s.phase !== 'registro';
   const lock = s.phase !== 'registro', lim = s.cupos ? Math.min(s.cupos, s.players.length) : s.players.length;
@@ -312,6 +324,7 @@ $('refSave').onclick = async () => {
 const toSec = v => Math.round(parseFloat(String(v).replace(',', '.')) * 60);
 $('dur').addEventListener('change', e => act('config', { duration: toSec(e.target.value) }));
 $('refDur').addEventListener('change', e => act('config', { refDuration: toSec(e.target.value) }));
+[['aSS', 'screenSound'], ['aSV', 'screenVoice'], ['aPS', 'phoneSound'], ['aPV', 'phoneVoice']].forEach(([id, k]) => { $(id).onchange = e => act('config', { audio: { [k]: e.target.checked } }); });
 $('reg').onclick = () => act('config', { regOpen: !STATE.regOpen });
 $('link').textContent = location.origin + '/';
 $('copy').onclick = () => navigator.clipboard.writeText(location.origin + '/').then(() => { $('copy').textContent = 'Copiado'; setTimeout(() => $('copy').textContent = 'Copiar', 1500); }).catch(() => {});

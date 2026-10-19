@@ -41,7 +41,7 @@ form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase
 <body>
 <main class="card">
   <div><div class="k">TEINCO 2026</div><h1>Torneo de <span>Prompts</span></h1></div>
-  <button type="button" id="snd" class="sndbtn">🔇 Activar sonido y voz</button>
+  <button type="button" id="snd" class="sndbtn" hidden>🔊 Toca aquí para escuchar sonido y voz</button>
 
   <form id="form" hidden>
     <label for="name" class="muted">Escribe tu nombre para inscribirte</label>
@@ -130,6 +130,7 @@ function status(s, me) {
 
 function render(s) {
   $('wait').hidden = true;
+  if (s.audio) { FX.configure({ sound: s.audio.phoneSound, voice: s.audio.phoneVoice }); sndLabel(); }
   // Si el servidor se reinició o se volvió a desplegar, recarga la página para tener la versión nueva
   if (boot && s.boot && s.boot !== boot) { location.reload(); return; }
   boot = s.boot || boot;
@@ -152,12 +153,9 @@ function render(s) {
 }
 
 // ---------- sonido y voz en el celular
-function sndLabel() { $('snd').textContent = FX.state.unlocked && FX.state.voice ? '🔊 Sonido y voz activos (tocar para silenciar)' : '🔇 Activar sonido y voz'; }
-$('snd').onclick = () => {
-  if (FX.state.unlocked && FX.state.voice) { FX.setVoiceOn(false); FX.setSound(false); }
-  else { FX.unlock(); FX.setVoiceOn(true); FX.setSound(true); FX.play('chime'); FX.say('Sonido y voz activados.', { flush: true }); lastNarr = ''; if (STATE) render(STATE); }
-  sndLabel();
-};
+// El navegador exige un toque para habilitar audio; el administrador decide si suena o no
+function sndLabel() { $('snd').hidden = FX.state.unlocked || !(FX.state.sound || FX.state.voice); }
+$('snd').onclick = () => { FX.unlock(); FX.play('chime'); FX.say('Sonido y voz activados.', { flush: true }); sndLabel(); };
 sndLabel();
 let lastNarr = null, lastSecPh = -1, lastBig = '';
 function narrate(s, st) {
