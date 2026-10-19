@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inscripción al torneo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<style>
+body{display:flex;justify-content:center;padding:24px 16px}
+.card{width:100%;max-width:440px;display:flex;flex-direction:column;gap:18px;text-align:center}
+h1{font-size:2.6rem}
+h1 span{color:var(--gold)}
+form{display:flex;flex-direction:column;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px}
+form input{font-size:1.2rem;text-align:center}
+form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase;letter-spacing:.05em}
+.me{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.me .av{font-size:3.4rem;animation:pop .6s both}
+.me .name{font-family:var(--display);font-size:2.2rem;text-transform:uppercase;overflow-wrap:anywhere;line-height:1}
+.status{border-radius:10px;padding:18px;background:var(--panel2);font-size:1.1rem;animation:rise .4s both}
+.status.good{background:var(--winbg);border:1px solid var(--win)}
+.status.gold{background:#3a2f0c;border:1px solid var(--gold)}
+.status .big{font-family:var(--display);font-size:1.9rem;text-transform:uppercase;line-height:1.05;display:block;margin-bottom:6px}
+.status .clock{font-family:var(--display);font-size:3.4rem;color:var(--gold);font-variant-numeric:tabular-nums;display:block}
+.rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.2rem;margin-top:8px}
+</style>
+</head>
+<body>
+<main class="card">
+  <div><div class="k">Torneo</div><h1>Sorteo <span>&amp;</span> Llaves</h1></div>
+
+  <form id="form" hidden>
+    <label for="name" class="muted">Escribe tu nombre para inscribirte</label>
+    <input id="name" type="text" maxlength="30" autocomplete="off" placeholder="Nombre y apellido" required>
+    <button class="gold" type="submit">Inscribirme</button>
+    <div class="err" id="err" hidden></div>
+  </form>
+  <div class="status" id="closed" hidden><span class="big">Registro cerrado</span>El torneo ya comenzó. Sigue los duelos en la pantalla principal.</div>
+
+  <div class="me" id="me" hidden></div>
+  <div class="status" id="status" hidden></div>
+  <p class="muted" id="wait">Conectando…</p>
+</main>
+<script src="/common.js"></script>
+<script>
+const KEY = 'torneo-jugador';
+let myId = null;
+try { myId = localStorage.getItem(KEY); } catch (e) {}
+const CONSUELO = ['Lo diste todo y se notó. ¡La próxima es tuya!', 'Caíste con la frente en alto. Gracias por competir.',
+  'Hoy no se dio, pero qué gran duelo. ¡Aplausos!', 'Cada duelo te hace mejor. ¡Gracias por participar!'];
+
+function status(s, me) {
+  if (!s.rounds) return { cls: 'good', big: '¡Ya estás inscrito!', txt: 'Este es tu avatar. Búscalo en la pantalla principal y espera el sorteo.' };
+  const T = s.rounds.length, pod = podium(s);
+  if (pod.first === me.id) return { cls: 'gold', big: '🏆 ¡Eres el campeón!', txt: '¡Felicitaciones! Ganaste el torneo.' };
+  if (pod.second === me.id) return { cls: 'gold', big: '🥈 ¡Subcampeón!', txt: 'Llegaste a la final. ¡Qué torneo tan grande hiciste!' };
+  if (pod.third === me.id) return { cls: 'gold', big: '🥉 ¡Tercer puesto!', txt: '¡Felicitaciones! Te subes al podio.' };
+  if (pod.fourth === me.id) return { cls: '', big: 'Cuarto puesto', txt: 'Estuviste entre los cuatro mejores. ¡Gran torneo!' };
+  let pending = null, lost = false, wins = 0, where = '';
+  s.rounds.forEach((rnd, r) => rnd.forEach((mt, m) => {
+    if (mt.a !== me.id && mt.b !== me.id) return;
+    const mine = mt.a === me.id ? 'a' : 'b';
+    if (!mt.winner) { pending = { mt, mine, label: roundName(r, T), cur: s.phase === 'torneo' && s.activeRound === r }; }
+    else if (mt.winner === mine) { if (!mt.bye) wins++; }
+    else { lost = true; where = roundName(r, T); }
+  }));
+  const t = s.third;
+  if (t && !t.winner && t.a && t.b && (t.a === me.id || t.b === me.id))
+    pending = { mt: t, mine: t.a === me.id ? 'a' : 'b', label: 'Tercer y cuarto puesto', cur: s.phase === 'torneo' && s.activeRound === T - 1 };
+  if (!pending && lost) return { cls: '', big: 'Hasta aquí llegaste', txt: 'Quedaste eliminado en ' + where + '. ' + CONSUELO[me.id.charCodeAt(0) % CONSUELO.length] };
+  if (!pending) return { cls: '', big: 'En lista de espera', txt: 'No alcanzaste cupo en este torneo. ¡Acompaña desde la tribuna!' };
+  const rival = player(pending.mt[pending.mine === 'a' ? 'b' : 'a']);
+  const rivalHtml = rival ? '<div class="rival">Tu rival: ' + avatar(rival) + esc(rival.name) + '</div>' : '<div class="rival muted">Tu rival aún no se define</div>';
+  if (pending.cur) return { cls: 'gold', big: '¡Tu duelo está en juego!', txt: pending.label + rivalHtml + '<span class="clock" id="clock"></span>', html: true };
+  const pre = wins ? '🎉 ¡Felicitaciones, avanzaste! ' : '';
+  return { cls: wins ? 'good' : '', big: pending.label, txt: pre + 'Espera a que te llamen a la pantalla.' + rivalHtml, html: true };
+}
+
+function render(s) {
+  $('wait').hidden = true;
+  const me = myId && player(myId);
+  if (myId && !me) { myId = null; try { localStorage.removeItem(KEY); } catch (e) {} }
+  const open = s.regOpen && s.phase === 'registro';
+  $('form').hidden = !!me || !open;
+  $('closed').hidden = !!me || open;
+  $('me').hidden = $('status').hidden = !me;
+  if (!me) return;
+  $('me').innerHTML = avatar(me) + '<div class="name">' + esc(me.name) + '</div>';
+  const st = status(s, me);
+  $('status').className = 'status ' + st.cls;
+  $('status').innerHTML = '<span class="big">' + st.big + '</span>' + (st.html ? st.txt : esc(st.txt));
+}
+setInterval(() => { const c = $('clock'); if (c && STATE && STATE.timer) { const ms = remaining(STATE.timer); c.textContent = ms <= 0 && STATE.timer.running ? '¡Tiempo!' : fmt(ms); } }, 200);
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  $('err').hidden = true;
+  try {
+    const r = await post('/api/register', { name: $('name').value });
+    myId = r.player.id;
+    try { localStorage.setItem(KEY, myId); } catch (e2) {}
+    if (STATE) render(STATE);
+  } catch (err) { $('err').textContent = err.message; $('err').hidden = false; }
+});
+connect(render);
+</script>
+</body>
+</html>

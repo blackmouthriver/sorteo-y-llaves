@@ -1,0 +1,33 @@
+:root{
+  --bg:#0b1020; --panel:#151c30; --panel2:#1d2640; --ink:#eef1f8; --muted:#97a2be; --line:#2b3553;
+  --accent:#6d93ff; --gold:#ffc83d; --win:#4fd69a; --winbg:#12382a; --bad:#ff8a80; --stage:#05070f;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif; --body:"Barlow","Segoe UI",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+h1,h2,h3{font-family:var(--display);text-transform:uppercase;letter-spacing:.03em;margin:0;line-height:1.05}
+[hidden]{display:none!important}
+button{font:600 1rem var(--body);border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:10px 16px;border-radius:6px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--gold)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:#08102a}
+button.gold{background:var(--gold);border-color:var(--gold);color:#201600}
+button.win{background:var(--win);border-color:var(--win);color:#04261a}
+button.danger{color:var(--bad)}
+button.small{padding:5px 10px;font-size:.85rem}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input[type=text],input[type=number],input[type=password]{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-width:0}
+.muted{color:var(--muted)}
+.k{font-family:var(--display);text-transform:uppercase;letter-spacing:.14em;color:var(--gold);font-weight:600}
+.av{display:inline-flex;align-items:center;justify-content:center;width:2.2em;height:2.2em;border-radius:50%;font-size:1em;line-height:1;flex:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}
+.av.ghost{background:var(--panel2);color:var(--muted);font-family:var(--display)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.err{color:var(--bad);font-weight:600}
+.ok{color:var(--win);font-weight:600}
+@keyframes pop{0%{transform:scale(.3);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+@keyframes pulse{50%{transform:scale(1.06)}}
+@keyframes blink{50%{opacity:.25}}
+@keyframes rise{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01s!important}}

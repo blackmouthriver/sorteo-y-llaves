@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sorteo y Llaves · Administrador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<style>
+body{padding:18px 16px 60px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px;border-bottom:3px solid var(--gold);padding-bottom:10px}
+header h1{font-size:2.2rem} header h1 span{color:var(--gold)}
+.grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel h2{font-size:1.4rem}
+label{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.field{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.field input[type=number]{width:96px;text-align:center}
+ol{list-style:none;margin:0;padding:0;max-height:340px;overflow:auto;border-top:1px solid var(--line)}
+ol li{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);min-width:0}
+ol li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ol li.out{opacity:.45}
+.live{border:2px solid var(--gold);background:var(--stage)}
+.live .names{font-family:var(--display);font-size:1.8rem;text-transform:uppercase;line-height:1.1;overflow-wrap:anywhere}
+.live #aclock{font-family:var(--display);font-size:3.6rem;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1}
+.phase{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.phase.active{border-color:var(--gold)}
+.phase h3{font-size:1.2rem}
+.mrow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.mrow .t{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0}
+.tag{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:4px;background:var(--panel2);color:var(--muted)}
+.tag.done{background:var(--winbg);color:var(--win)}
+.filebtn{display:inline-block;font-weight:600;border:1px solid var(--line);background:var(--panel2);padding:10px 16px;border-radius:6px;cursor:pointer}
+.filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+#login{max-width:380px;margin:60px auto}
+code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sorteo <span>&amp;</span> Llaves · Administrador</h1>
+    <div class="row"><a href="/pantalla" target="_blank" style="color:var(--accent)">Abrir pantalla pública ↗</a></div>
+  </header>
+
+  <form class="panel" id="login" hidden>
+    <h2>Acceso de administrador</h2>
+    <input id="key" type="password" placeholder="Clave" autocomplete="current-password" aria-label="Clave de administrador">
+    <button class="gold" type="submit">Entrar</button>
+    <div class="err" id="lerr" hidden></div>
+  </form>
+
+  <div id="app" hidden>
+    <div class="panel" id="backup" hidden style="border-color:var(--gold);margin-bottom:18px">
+      <strong>El servidor se reinició y perdió los datos.</strong>
+      <span>Este navegador guarda una copia del torneo (<span id="binfo"></span>).</span>
+      <div class="row"><button class="gold" id="brestore">Restaurar la copia</button><button id="bdrop">Descartarla</button></div>
+    </div>
+    <p class="err" id="err" hidden></p>
+    <div class="grid">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <section class="panel">
+          <h2>Configuración</h2>
+          <div class="field"><label for="dur">Tiempo por fase (segundos)</label><input id="dur" type="number" min="5" max="3600"></div>
+          <div class="field"><label>Inscripciones</label><button id="reg" class="small"></button></div>
+          <div><label>Link de inscripción</label><div class="row"><code id="link"></code><button id="copy" class="small">Copiar</button></div></div>
+        </section>
+        <section class="panel">
+          <div class="row" style="justify-content:space-between"><h2>Participantes</h2><strong id="count"></strong></div>
+          <form class="row" id="addForm"><input id="addName" type="text" maxlength="30" placeholder="Agregar a mano" style="flex:1" aria-label="Nombre"><button type="submit">Agregar</button></form>
+          <label class="filebtn" id="fileLbl">Cargar desde Excel<input id="file" type="file" accept=".xlsx,.xls,.csv"></label>
+          <p class="ok" id="msg" hidden></p>
+          <ol id="people"></ol>
+        </section>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <section class="panel live" id="live" hidden>
+          <div class="k" id="liveK"></div>
+          <div id="aclock"></div>
+          <div class="row">
+            <button class="primary" id="tStart">▶ Iniciar tiempo</button>
+            <button id="tPause">⏸ Pausar</button>
+            <button id="tReset">↺ Reiniciar tiempo</button>
+          </div>
+          <p class="muted" style="margin:0">Un solo cronómetro para todos los duelos de la fase. Marca al ganador de cada duelo en la lista de abajo.</p>
+        </section>
+
+        <section class="panel">
+          <div class="row" style="justify-content:space-between">
+            <h2>Torneo</h2>
+            <div class="row"><button class="gold" id="draw">🎲 Sortear</button><button id="undo">Deshacer último resultado</button></div>
+          </div>
+          <p class="muted" id="hint" style="margin:0"></p>
+          <div id="phases" style="display:flex;flex-direction:column;gap:12px"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Zona de reinicio</h2>
+          <div class="row">
+            <button class="danger" id="reset">Reiniciar torneo (conserva inscritos)</button>
+            <button class="danger" id="wipe">Borrar todo</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/common.js"></script>
+<script>
+const BK = 'torneo-respaldo';
+let KEYV = '';
+try { KEYV = sessionStorage.getItem('torneo-clave') || ''; } catch (e) {}
+const armed = {};
+
+function showErr(m) { $('err').textContent = m; $('err').hidden = !m; if (m) setTimeout(() => { $('err').hidden = true; }, 5000); }
+async function act(action, extra) {
+  try { showErr(''); return await post('/api/admin', Object.assign({ key: KEYV, action }, extra || {})); }
+  catch (e) { if (e.status === 401) { KEYV = ''; gate(); } else showErr(e.message); return null; }
+}
+function gate() { $('login').hidden = !!KEYV; $('app').hidden = !KEYV; }
+$('login').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { await post('/api/admin', { key: $('key').value, action: 'login' }); KEYV = $('key').value; try { sessionStorage.setItem('torneo-clave', KEYV); } catch (e2) {} $('lerr').hidden = true; gate(); }
+  catch (err) { $('lerr').textContent = err.message; $('lerr').hidden = false; }
+});
+// Confirmación en dos pulsaciones para acciones que borran datos
+function twoStep(id, label, fn) {
+  $(id).onclick = () => {
+    if (!armed[id]) { armed[id] = true; $(id).textContent = '¿Seguro? Pulsa otra vez'; setTimeout(() => { armed[id] = false; $(id).textContent = label; }, 3500); return; }
+    armed[id] = false; $(id).textContent = label; fn();
+  };
+}
+const nm = id => { const p = player(id); return p ? avatar(p) + ' ' + esc(p.name) : '<span class="muted">por definir</span>'; };
+const plain = id => (player(id) || {}).name || '';
+
+function render(s) {
+  // respaldo local por si el servidor gratuito se reinicia
+  let bk = null;
+  try { bk = JSON.parse(localStorage.getItem(BK)); } catch (e) {}
+  if (s.players.length) { try { localStorage.setItem(BK, JSON.stringify(s)); } catch (e) {} $('backup').hidden = true; }
+  else if (bk && bk.players && bk.players.length && s.phase === 'registro') {
+    $('backup').hidden = false; $('binfo').textContent = bk.players.length + ' participantes, guardada ' + new Date(bk.now).toLocaleString();
+  } else $('backup').hidden = true;
+
+  if (document.activeElement !== $('dur')) $('dur').value = s.duration;
+  $('reg').textContent = s.regOpen ? 'Abiertas · cerrar' : 'Cerradas · abrir';
+  $('reg').disabled = s.phase !== 'registro';
+  const lock = s.phase !== 'registro', lim = s.cupos ? Math.min(s.cupos, s.players.length) : s.players.length;
+  $('count').textContent = s.players.length;
+  $('people').innerHTML = s.players.map((p, i) => '<li class="' + (i >= lim ? 'out' : '') + '">' + avatar(p) + '<span class="nm">' + esc(p.name) + '</span>' +
+    (i >= lim ? '<span class="tag">sin cupo</span>' : '') + (lock ? '' : '<button class="small danger" data-del="' + p.id + '" aria-label="Quitar ' + esc(p.name) + '">✕</button>') + '</li>').join('')
+    || '<li class="muted">Aún no hay inscritos.</li>';
+  $('addForm').querySelector('button').disabled = $('addName').disabled = $('file').disabled = lock;
+  $('fileLbl').style.opacity = lock ? .4 : 1;
+  $('draw').disabled = lock || lim < 2;
+  $('undo').disabled = !s.hasUndo;
+
+  const T = s.rounds ? s.rounds.length : 0;
+  $('hint').textContent = s.phase === 'registro' ? 'Cuando estén todos inscritos, pulsa Sortear. El sorteo se muestra en vivo en la pantalla pública.'
+    : s.phase === 'sorteo' ? 'Sorteo hecho. Cuando termine la animación en pantalla, inicia la primera fase.'
+    : s.phase === 'fin' ? 'Torneo terminado. El podio está en pantalla.'
+    : 'Inicia el tiempo de la fase y marca al ganador de cada duelo.';
+
+  // cronómetro de la fase
+  const inPlay = s.phase === 'torneo' && !!s.timer;
+  $('live').hidden = !inPlay;
+  if (inPlay) { $('liveK').textContent = 'Fase en juego · ' + roundName(s.activeRound, T); $('tStart').disabled = s.timer.running; $('tPause').disabled = !s.timer.running; }
+
+  // fases
+  $('phases').innerHTML = !s.rounds ? '' : s.rounds.map((rnd, r) => {
+    const canStart = r === s.activeRound + 1 && (r === 0 || s.rounds[r - 1].every(m => m.winner));
+    const active = r === s.activeRound && s.phase === 'torneo';
+    const row = (mt, attr, title) => {
+      let right;
+      if (mt.bye) right = '<span class="tag">pasa directo</span>';
+      else if (mt.winner) right = '<span class="tag done">Ganó ' + esc(plain(mt[mt.winner])) + '</span>';
+      else if (!mt.a || !mt.b) right = '<span class="tag">por definir</span>';
+      else { const d = active ? '' : ' disabled'; right = '<span class="row"><button class="small win" ' + attr + ' data-side="a"' + d + '>Gana ' + esc(plain(mt.a)) + '</button><button class="small win" ' + attr + ' data-side="b"' + d + '>Gana ' + esc(plain(mt.b)) + '</button></span>'; }
+      return '<div class="mrow"><div class="t">' + (title ? '<span class="tag">' + title + '</span>' : '') + nm(mt.a) + ' <span class="muted">vs</span> ' + (mt.bye ? '<span class="muted">—</span>' : nm(mt.b)) + '</div>' + right + '</div>';
+    };
+    return '<div class="phase' + (active ? ' active' : '') + '"><div class="row" style="justify-content:space-between"><h3>' + roundName(r, T) + '</h3>' +
+      (canStart ? '<button class="gold small" data-start="1">▶ Iniciar fase</button>' : r <= s.activeRound ? '<span class="tag done">' + (rnd.every(m => m.winner) ? 'Terminada' : 'En juego') + '</span>' : '<span class="tag">Pendiente</span>') + '</div>' +
+      rnd.map((mt, m) => row(mt, 'data-open="' + m + '"')).join('') +
+      (r === T - 1 && s.third && s.third.a && s.third.b ? row(s.third, 'data-third="1"', '3.º y 4.º') : '') + '</div>';
+  }).join('');
+}
+setInterval(() => { if (STATE && STATE.timer) { const ms = remaining(STATE.timer); $('aclock').textContent = STATE.timer.running && ms <= 0 ? '¡Tiempo terminado!' : fmt(ms); } }, 200);
+
+$('dur').addEventListener('change', e => act('config', { duration: e.target.value }));
+$('reg').onclick = () => act('config', { regOpen: !STATE.regOpen });
+$('link').textContent = location.origin + '/';
+$('copy').onclick = () => navigator.clipboard.writeText(location.origin + '/').then(() => { $('copy').textContent = 'Copiado'; setTimeout(() => $('copy').textContent = 'Copiar', 1500); }).catch(() => {});
+$('addForm').addEventListener('submit', async e => { e.preventDefault(); const v = $('addName').value.trim(); if (!v) return;
+  const r = await act('addPlayers', { names: [v] }); if (r) { if (r.added) $('addName').value = ''; else showErr('No se agregó: nombre repetido o muy corto.'); } });
+$('people').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (b) act('removePlayer', { id: b.dataset.del }); });
+$('file').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  if (typeof XLSX === 'undefined') return showErr('No se pudo cargar el lector de Excel. Revisa la conexión.');
+  const fr = new FileReader();
+  fr.onload = async () => {
+    try {
+      const wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false });
+      let names = rows.map(r => { const c = (r || []).find(v => v !== null && v !== undefined && String(v).trim() !== ''); return c === undefined ? '' : String(c).trim(); }).filter(Boolean);
+      if (names.length && /^(nombres?|participantes?|name|equipos?|jugador(es)?|estudiantes?)$/i.test(names[0])) names.shift();
+      if (!names.length) return showErr('El archivo no tiene nombres en la primera columna.');
+      const r = await act('addPlayers', { names });
+      if (r) { $('msg').textContent = 'Se agregaron ' + r.added + (r.skipped ? ' (' + r.skipped + ' omitidos por repetidos o inválidos)' : '') + '.'; $('msg').hidden = false; }
+    } catch (err) { showErr('No se pudo leer el archivo. Usa .xlsx, .xls o .csv.'); }
+  };
+  fr.readAsArrayBuffer(file); e.target.value = '';
+});
+$('draw').onclick = () => act('draw');
+$('undo').onclick = () => act('undo');
+$('phases').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.start) act('startPhase'); else if (b.dataset.third) act('setWinner', { third: true, side: b.dataset.side }); else if (b.dataset.open) act('setWinner', { m: b.dataset.open, side: b.dataset.side });
+});
+$('tStart').onclick = () => act('timer', { cmd: 'start' });
+$('tPause').onclick = () => act('timer', { cmd: 'pause' });
+$('tReset').onclick = () => act('timer', { cmd: 'reset' });
+twoStep('reset', 'Reiniciar torneo (conserva inscritos)', () => act('resetTournament'));
+twoStep('wipe', 'Borrar todo', () => { try { localStorage.removeItem(BK); } catch (e) {} act('wipe'); });
+$('brestore').onclick = () => { try { act('restore', { state: JSON.parse(localStorage.getItem(BK)) }); } catch (e) {} };
+$('bdrop').onclick = () => { try { localStorage.removeItem(BK); } catch (e) {} $('backup').hidden = true; };
+
+gate();
+connect(render);
+</script>
+</body>
+</html>

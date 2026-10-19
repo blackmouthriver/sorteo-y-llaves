@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sorteo y Llaves · Pantalla</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<style>
+body{padding:18px 24px 40px;overflow-x:hidden}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:3px solid var(--gold);padding-bottom:10px;margin-bottom:20px}
+header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold)}
+#phase{font-family:var(--display);font-size:1.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+/* registro */
+.join{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:28px;background:var(--stage);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:22px;text-align:center}
+.join .url{font-family:var(--display);font-size:clamp(1.8rem,4.5vw,3.6rem);color:var(--ink);overflow-wrap:anywhere;line-height:1.1}
+#qr{background:#fff;padding:10px;border-radius:8px;line-height:0}
+.count{font-family:var(--display);font-size:1.6rem;color:var(--muted)}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.chip{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 18px 8px 8px;font-weight:600;font-size:1.15rem;min-width:0}
+.chip span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.new{animation:pop .6s both}
+.chip.out{opacity:.4}
+/* duelo y sorteo */
+.stage{background:var(--stage);border:1px solid var(--line);border-radius:14px;padding:26px 18px;text-align:center}
+.duel{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px;margin-top:14px}
+.side{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
+.side .av{font-size:clamp(2.6rem,6.5vw,5rem)}
+.side .nm{font-family:var(--display);font-size:clamp(1.8rem,4.6vw,4rem);text-transform:uppercase;line-height:1;overflow-wrap:anywhere}
+.side.set .nm{color:var(--gold)} .side.spin .av{animation:pulse .3s infinite}
+.vs{font-family:var(--display);font-size:clamp(1.6rem,3vw,2.6rem);color:var(--muted)}
+#clock{font-family:var(--display);font-size:clamp(4rem,11vw,8.5rem);line-height:.95;font-variant-numeric:tabular-nums;margin-top:10px}
+#clock.low{color:var(--bad);animation:pulse 1s infinite}
+#clock.end{color:var(--bad);animation:blink .7s infinite;font-size:clamp(3rem,10vw,8rem)}
+.pairs{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:20px}
+.pair{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:0;animation:rise .4s both}
+.pair .n{font-family:var(--display);color:var(--muted);width:2ch}
+.pair .who{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.pair .who span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* duelos de la fase */
+.duels{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:16px}
+.dc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.dc.done{border-color:var(--win)}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}
+.dside{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;font-family:var(--display);font-size:1.6rem;text-transform:uppercase;line-height:1.05}
+.dside .av{font-size:2.6rem} .dside span:last-child{overflow-wrap:anywhere}
+.dside.w{color:var(--win)} .dside.w .av{box-shadow:0 0 0 4px var(--win)} .dside.l{opacity:.35}
+.dc .vs{font-size:1.3rem}
+/* llaves */
+.bracket{display:flex;gap:26px;overflow-x:auto;padding-bottom:10px}
+.round{flex:1 0 220px;min-width:220px;display:flex;flex-direction:column;gap:10px}
+.round h3{font-size:1.25rem;color:var(--muted);border-bottom:2px solid var(--line);padding-bottom:4px}
+.round.active h3{color:var(--gold);border-color:var(--gold)}
+.ms{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px}
+.match{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+.match.cur{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.slot{display:flex;align-items:center;gap:8px;padding:7px 10px;font-weight:500;min-width:0}
+.slot+.slot{border-top:1px solid var(--line)}
+.slot span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.slot.w{background:var(--winbg);color:var(--win);font-weight:600}
+.slot.l{opacity:.45}
+.slot.e{color:var(--muted);font-style:italic}
+.tl{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:8px}
+/* podio */
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:26px 0}
+.step{display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px 12px 0 0;padding:18px 22px;min-width:190px;animation:rise .7s both}
+.step .av{font-size:3.4rem} .step .nm{font-family:var(--display);font-size:1.9rem;text-transform:uppercase;text-align:center;overflow-wrap:anywhere;line-height:1}
+.step.p1{border-color:var(--gold);padding-bottom:90px;background:#2c2408} .step.p1 .av{font-size:5.4rem;animation:pulse 1.6s infinite}
+.step.p2{padding-bottom:54px} .step.p3{padding-bottom:28px}
+.medal{font-size:2.4rem}
+/* superposiciones */
+#overlay{position:fixed;inset:0;background:rgba(5,7,15,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;z-index:5}
+#overlay>.av{font-size:clamp(3.5rem,9vw,6.5rem);animation:pop .7s both}
+#overlay .soft .av{font-size:1.3em}
+#overlay .big{font-family:var(--display);font-size:clamp(2.4rem,6.5vw,5.2rem);text-transform:uppercase;line-height:1;color:var(--gold);animation:pop .6s both;overflow-wrap:anywhere}
+#overlay .mid{font-size:clamp(1.3rem,3vw,2.2rem);font-weight:600;animation:rise .6s .3s both}
+#overlay .soft{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;font-size:clamp(1.05rem,2.2vw,1.6rem);color:var(--muted);margin-top:22px;border-top:1px solid var(--line);padding-top:18px;animation:rise .6s 1.2s both;max-width:900px}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:6}
+</style>
+</head>
+<body>
+<header>
+  <h1>Sorteo <span>&amp;</span> Llaves</h1>
+  <div class="row"><span id="phase"></span><button id="sound" class="small">🔇 Activar sonido</button></div>
+</header>
+
+<section id="join" hidden>
+  <div class="join">
+    <div><div class="k">Inscríbete desde tu celular en</div><div class="url" id="url"></div><div class="count" id="count"></div></div>
+    <div id="qr"></div>
+  </div>
+</section>
+<main id="view"><p class="muted">Conectando…</p></main>
+<div id="overlay" hidden></div>
+<canvas id="fx"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="/common.js"></script>
+<script>
+const STEP = 2400; // milisegundos por llave en el sorteo
+const CONSUELO = ['¡Gran esfuerzo, {n}! Lo diste todo.', 'Gracias por participar, {n}. ¡La próxima es tuya!',
+  '{n} cae con la frente en alto. ¡Aplausos!', '¡Qué gran duelo, {n}! Hoy no se dio, pero dejaste huella.'];
+const seen = new Set();
+let first = true, lastEvent = null, lastPhase = null, overlayT = null, view = '', endedFor = 0, lastSec = -1, drawDone = false;
+
+// ---------- sonido
+let audio = null;
+$('sound').onclick = () => { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); $('sound').textContent = '🔊 Sonido activo'; tone(880, .15); } catch (e) {} };
+function tone(freq, dur, type, at) {
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + (at || 0);
+  o.type = type || 'sine'; o.frequency.value = freq; o.connect(g); g.connect(audio.destination);
+  g.gain.setValueAtTime(.25, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.start(t); o.stop(t + dur);
+}
+const fanfare = () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .35, 'triangle', i * .14));
+const buzzer = () => { tone(220, .9, 'sawtooth'); tone(165, .9, 'square'); };
+
+// ---------- confeti
+const fx = $('fx'), ctx = fx.getContext('2d');
+let bits = [], fxOn = false;
+function confetti(n) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  fx.width = innerWidth; fx.height = innerHeight;
+  const cols = ['#ffc83d', '#6d93ff', '#4fd69a', '#ff8a80', '#f783ac', '#ffffff'];
+  for (let i = 0; i < n; i++) bits.push({ x: Math.random() * fx.width, y: -20 - Math.random() * fx.height * .5, vx: (Math.random() - .5) * 4,
+    vy: 2 + Math.random() * 5, s: 6 + Math.random() * 8, r: Math.random() * 6, c: cols[i % cols.length] });
+  if (!fxOn) { fxOn = true; requestAnimationFrame(frame); }
+}
+function frame() {
+  ctx.clearRect(0, 0, fx.width, fx.height);
+  bits = bits.filter(b => b.y < fx.height + 20);
+  for (const b of bits) { b.x += b.vx; b.y += b.vy; b.r += .12; ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r); ctx.fillStyle = b.c; ctx.fillRect(-b.s / 2, -b.s / 4, b.s, b.s / 2); ctx.restore(); }
+  if (bits.length) requestAnimationFrame(frame); else fxOn = false;
+}
+
+// ---------- superposiciones
+function overlay(html, ms) {
+  $('overlay').innerHTML = html; $('overlay').hidden = false;
+  clearTimeout(overlayT); overlayT = setTimeout(() => { $('overlay').hidden = true; }, ms);
+}
+function celebrate(ev) {
+  const s = STATE, T = s.rounds.length, w = player(ev.winner), l = player(ev.loser);
+  const wn = w ? esc(w.name) : '', ln = l ? esc(l.name) : '';
+  let big, mid, soft;
+  if (ev.type === 'champion') {
+    big = '🏆 ¡' + wn + ' es campeón!'; mid = '¡Felicitaciones! Se lleva el torneo.';
+    soft = '🥈 Subcampeón: ' + avatar(l) + ' <strong>' + ln + '</strong>. ¡Un torneo enorme!';
+  } else if (ev.type === 'third') {
+    big = '🥉 ¡Tercer puesto para ' + wn + '!'; mid = '¡Felicitaciones! Se sube al podio.';
+    soft = avatar(l) + ' <strong>' + ln + '</strong> termina en cuarto lugar. ¡Gran torneo!';
+  } else {
+    big = '🎉 ¡Felicitaciones, ' + wn + '!'; mid = 'Avanza a ' + (ev.r + 1 === T - 1 ? 'la gran final' : roundName(ev.r + 1, T));
+    soft = avatar(l) + '<span>' + (ev.r === T - 2 && s.third && (s.third.a === ev.loser || s.third.b === ev.loser)
+      ? '<strong>' + ln + '</strong> todavía pelea por el tercer puesto. ¡Ánimo!'
+      : CONSUELO[ev.id % CONSUELO.length].replace('{n}', '<strong>' + ln + '</strong>')) + '</span>';
+  }
+  overlay(avatar(w) + '<div class="big">' + big + '</div><div class="mid">' + mid + '</div><div class="soft">' + soft + '</div>', ev.type === 'champion' ? 11000 : 7000);
+  confetti(ev.type === 'champion' ? 420 : 160); fanfare();
+  if (ev.type === 'champion') setTimeout(() => { confetti(300); fanfare(); }, 2500);
+}
+function banner(r) {
+  const T = STATE.rounds.length, fin = r === T - 1;
+  overlay('<div class="k" style="font-size:2rem">' + (fin ? 'Llegó el momento' : 'Comienza la fase') + '</div><div class="big">' +
+    (fin ? '🏆 La gran final' : roundName(r, T)) + '</div><div class="mid">' + (fin ? 'Solo queda un duelo por la gloria' : '¡Mucha suerte a todos!') + '</div>', fin ? 5500 : 3800);
+  if (fin) confetti(220);
+  fanfare();
+}
+
+// ---------- vistas
+const who = (id, cls) => { const p = player(id); return '<div class="' + cls + '">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div>'; };
+function slot(mt, k) {
+  if (k === 'b' && mt.bye) return '<div class="slot e"><span class="av ghost">·</span><span>pasa directo</span></div>';
+  const p = player(mt[k]);
+  if (!p) return '<div class="slot e">' + avatar(null) + '<span>por definir</span></div>';
+  const c = mt.winner ? (mt.winner === k ? 'w' : 'l') : '';
+  return '<div class="slot ' + c + '">' + avatar(p) + '<span>' + esc(p.name) + '</span>' + (c === 'w' && !mt.bye ? '<span>✓</span>' : '') + '</div>';
+}
+function bracketHTML(s) {
+  const T = s.rounds.length, cur = s.current;
+  return '<div class="bracket">' + s.rounds.map((rnd, r) => '<div class="round' + (r === s.activeRound ? ' active' : '') + '"><h3>' + roundName(r, T) + '</h3><div class="ms">' +
+    rnd.map((mt, m) => '<div class="match' + (cur && cur.r === r && cur.m === m ? ' cur' : '') + '">' + slot(mt, 'a') + slot(mt, 'b') + '</div>').join('') +
+    (r === T - 1 && s.third && s.third.a && s.third.b ? '<div><div class="tl">Tercer y cuarto puesto</div><div class="match' + (cur && cur.third ? ' cur' : '') + '">' + slot(s.third, 'a') + slot(s.third, 'b') + '</div></div>' : '') +
+    '</div></div>').join('') + '</div>';
+}
+function side(p, cls) { return '<div class="side ' + cls + '">' + avatar(p) + '<div class="nm">' + (p ? esc(p.name) : '?') + '</div></div>'; }
+
+function renderDraw() {
+  const s = STATE, f = s.rounds[0], el = now() - s.drawAt, idx = Math.floor(el / STEP), names = f.flatMap(m => [m.a, m.b]).filter(Boolean);
+  const rnd = () => player(names[Math.floor(Math.random() * names.length)]);
+  let html;
+  if (idx >= f.length) {
+    drawDone = true;
+    html = '<div class="stage"><div class="k" style="font-size:1.6rem">Sorteo completo</div><p class="muted" style="font-size:1.2rem;margin:6px 0 0">Estos son los cruces. En un momento comienza la primera fase.</p></div>';
+  } else {
+    const mt = f[idx], t = el - idx * STEP, aSet = t > STEP * .4, bSet = t > STEP * .8;
+    const b = mt.bye ? '<div class="side set"><span class="av ghost">·</span><div class="nm">Pasa directo</div></div>' : side(bSet ? player(mt.b) : rnd(), bSet ? 'set' : 'spin');
+    html = '<div class="stage"><div class="k" style="font-size:1.6rem">Llave ' + (idx + 1) + ' de ' + f.length + '</div><div class="duel">' +
+      side(aSet ? player(mt.a) : rnd(), aSet ? 'set' : 'spin') + '<div class="vs">VS</div>' + b + '</div></div>';
+  }
+  html += '<div class="pairs">' + f.slice(0, Math.min(idx, f.length)).map((mt, i) => '<div class="pair" style="animation:none"><span class="n">' + (i + 1) + '</span>' +
+    who(mt.a, 'who') + '<span class="muted">vs</span>' + (mt.bye ? '<div class="who muted"><span>pasa directo</span></div>' : who(mt.b, 'who')) + '</div>').join('') + '</div>';
+  $('view').innerHTML = html;
+}
+
+function render() {
+  const s = STATE, T = s.rounds ? s.rounds.length : 0;
+  view = s.phase;
+  $('join').hidden = s.phase !== 'registro';
+  $('phase').textContent = s.phase === 'registro' ? (s.regOpen ? 'Inscripciones abiertas' : 'Inscripciones cerradas') : s.phase === 'sorteo' ? 'Sorteo en vivo'
+    : s.phase === 'fin' ? 'Torneo terminado' : roundName(s.activeRound, T);
+  if (view === 'registro') {
+    const lim = s.cupos ? Math.min(s.cupos, s.players.length) : s.players.length;
+    $('count').textContent = s.players.length + (s.players.length === 1 ? ' inscrito' : ' inscritos') + (s.cupos ? ' · ' + s.cupos + ' cupos' : '');
+    $('view').innerHTML = s.players.length ? '<div class="chips">' + s.players.map((p, i) => '<div class="chip' + (seen.has(p.id) ? '' : ' new') + (i >= lim ? ' out' : '') + '">' + avatar(p) + '<span>' + esc(p.name) + '</span></div>').join('') + '</div>'
+      : '<p class="muted" style="text-align:center;font-size:1.3rem">Aún no hay inscritos. Los participantes aparecen aquí apenas se registran.</p>';
+    s.players.forEach(p => seen.add(p.id));
+  } else if (view === 'sorteo') { drawDone = false; renderDraw(); }
+  else if (view === 'torneo') {
+    const r = s.activeRound;
+    const ds = (mt, k) => { const p = player(mt[k]), c = mt.winner ? (mt.winner === k ? ' w' : ' l') : ''; return '<div class="dside' + c + '">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div>'; };
+    const card = (mt, label) => '<div class="dc' + (mt.winner ? ' done' : '') + '">' + (label ? '<div class="k">' + label + '</div>' : '') + '<div class="drow">' + ds(mt, 'a') + '<span class="vs">VS</span>' + ds(mt, 'b') + '</div></div>';
+    const fin = r === T - 1, hasThird = fin && s.third && s.third.a && s.third.b;
+    const cards = s.rounds[r].filter(mt => !mt.bye && mt.a && mt.b).map(mt => card(mt, fin ? 'Final' : '')).join('') + (hasThird ? card(s.third, 'Tercer y cuarto puesto') : '');
+    $('view').innerHTML = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · tiempo de la fase</div><div id="clock"></div></div>' +
+      '<div class="duels">' + cards + '</div><div class="tl" style="margin:22px 0 8px">Llaves</div>' + bracketHTML(s);
+    lastSec = -1; tick();
+  }
+  else if (view === 'fin') {
+    const pod = podium(s), st = (id, c, medal, label) => id ? '<div class="step ' + c + '"><div class="medal">' + medal + '</div>' + avatar(player(id)) +
+      '<div class="nm">' + esc((player(id) || {}).name || '') + '</div><div class="k">' + label + '</div></div>' : '';
+    $('view').innerHTML = '<div class="podium">' + st(pod.second, 'p2', '🥈', 'Subcampeón') + st(pod.first, 'p1', '🏆', 'Campeón') + st(pod.third, 'p3', '🥉', 'Tercer puesto') + '</div>' +
+      (pod.fourth ? '<p class="muted" style="text-align:center;font-size:1.2rem">Cuarto puesto: <strong>' + esc((player(pod.fourth) || {}).name || '') + '</strong></p>' : '') + bracketHTML(s);
+  }
+}
+function tick() {
+  if (!STATE) return;
+  if (view === 'sorteo' && !drawDone) renderDraw();
+  const c = $('clock'), t = STATE.timer;
+  if (view !== 'torneo' || !c || !t) return;
+  const ms = remaining(t), sec = Math.ceil(ms / 1000);
+  if (t.running && ms <= 0) {
+    c.textContent = '¡Tiempo terminado!'; c.className = 'end';
+    if (endedFor !== t.endsAt) { endedFor = t.endsAt; buzzer(); }
+  } else {
+    c.textContent = fmt(ms); c.className = t.running && sec <= 10 ? 'low' : '';
+    if (t.running && sec <= 5 && sec !== lastSec) tone(660, .12);
+    lastSec = sec;
+  }
+}
+setInterval(tick, 150);
+
+connect(s => {
+  if (first) { first = false; lastEvent = s.event && s.event.id; lastPhase = s.phaseEvent && s.phaseEvent.id; s.players.forEach(p => seen.add(p.id)); if (s.timer && s.timer.running && remaining(s.timer) <= 0) endedFor = s.timer.endsAt; }
+  render();
+  if (s.event && s.event.id !== lastEvent) celebrate(s.event);
+  if (s.phaseEvent && s.phaseEvent.id !== lastPhase) banner(s.phaseEvent.r);
+  lastEvent = s.event && s.event.id; lastPhase = s.phaseEvent && s.phaseEvent.id;
+});
+const link = location.origin + '/';
+$('url').textContent = location.host;
+try { new QRCode($('qr'), { text: link, width: 180, height: 180 }); } catch (e) { $('qr').hidden = true; }
+</script>
+</body>
+</html>
