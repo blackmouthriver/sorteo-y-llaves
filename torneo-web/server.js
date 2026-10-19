@@ -14,7 +14,7 @@ const MAX_PLAYERS = 1000; // tope de seguridad; el torneo se arma con todos los 
 const EMOJI = ['🦊','🐼','🦁','🐯','🐸','🐵','🦄','🐙','🦉','🐨','🐰','🐻','🐶','🐱','🦖','🐢','🦋','🐝','🦀','🐬','🦈','🐳','🦩','🦜','🐧','🦅','🐺','🦝','🐮','🐷','🐹','🐔','🦆','🦚','🦔','🦦','🦥','🐘','🦒','🦓','🐊','🐍','🦎','🐞','🦂','🐲','👾','🤖','👽','🚀','⚡','🔥','🌟','🍀','🌵','🍄','🎸','🎯','🎲','🏀','⚽','🥑','🍉','🌶️'];
 const COLORS = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#38d9a9','#4dabf7','#748ffc','#b197fc','#f783ac','#63e6be','#a9e34b','#ff8787'];
 
-const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 180, refDuration: 60, rounds: null,
+const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 300, refDuration: 60, rounds: null,
   third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, seq: 0 });
 
 let S = fresh();
@@ -134,7 +134,7 @@ const ACTIONS = {
     for (const [f, label] of [['duration', 'subir la imagen'], ['refDuration', 'ver la referencia']]) {
       if (b[f] === undefined) continue;
       const d = Math.round(Number(b[f]));
-      if (!(d >= 5 && d <= 3600)) fail('El tiempo para ' + label + ' debe estar entre 5 y 3600 segundos.');
+      if (!(d >= 30 && d <= 7200)) fail('El tiempo para ' + label + ' debe estar entre 0,5 y 120 minutos.');
       S[f] = d;
     }
     if (b.regOpen !== undefined) {
@@ -190,7 +190,7 @@ const ACTIONS = {
       setStage('ref', S.refDuration);
     } else if (b.cmd === 'upload' && (st === 'prep' || st === 'ref')) setStage('upload', S.duration);
     else if (b.cmd === 'results' && st === 'upload') setStage('results');
-    else if (b.cmd === 'add30' && S.stage.endsAt) S.stage.endsAt += 30000;
+    else if (b.cmd === 'add30' && S.stage.endsAt) S.stage.endsAt += 60000;
     else fail('Esa acción no aplica en esta etapa.');
   },
   setWinner(b) {

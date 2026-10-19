@@ -17,7 +17,8 @@ header h1{font-size:2.2rem} header h1 span{color:var(--gold-ink)}
 .panel h2{font-size:1.4rem}
 label{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .field{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.field input[type=number]{width:96px;text-align:center}
+.field input[type=number]{width:84px;flex:none;text-align:center;padding:10px 6px}
+.field label{flex:1;min-width:0}
 ol{list-style:none;margin:0;padding:0;max-height:340px;overflow:auto;border-top:1px solid var(--line)}
 ol li{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);min-width:0}
 ol li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -88,8 +89,8 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
       <div style="display:flex;flex-direction:column;gap:18px">
         <section class="panel">
           <h2>Configuración</h2>
-          <div class="field"><label for="refDur">Tiempo para ver la referencia (s)</label><input id="refDur" type="number" min="5" max="3600"></div>
-          <div class="field"><label for="dur">Tiempo para subir la imagen (s)</label><input id="dur" type="number" min="5" max="3600"></div>
+          <div class="field"><label for="refDur">Configuración de tiempo para mostrar la referencia de ronda a los participantes (minutos)</label><input id="refDur" type="number" min="0.5" max="120" step="0.5"></div>
+          <div class="field"><label for="dur">Configuración de tiempo de duración de ronda (minutos)</label><input id="dur" type="number" min="0.5" max="120" step="0.5"></div>
           <div class="field"><label>Inscripciones</label><button id="reg" class="small"></button></div>
           <div><label>Link de inscripción</label><div class="row"><code id="link"></code><button id="copy" class="small">Copiar</button></div></div>
         </section>
@@ -126,7 +127,7 @@ code{background:var(--bg);padding:2px 6px;border-radius:4px;overflow-wrap:anywhe
             <button class="primary" id="sRef">▶ Mostrar referencia</button>
             <button id="sUp">Abrir carga de imágenes</button>
             <button class="primary" id="sRes">Cerrar carga y mostrar resultados</button>
-            <button id="sAdd">+30 s</button>
+            <button id="sAdd">+1 min</button>
           </div>
           <p class="muted" id="liveHint" style="margin:0"></p>
         </section>
@@ -181,6 +182,7 @@ function twoStep(id, label, fn) {
   };
 }
 const nm = id => { const p = player(id); return p ? avatar(p) + ' ' + esc(p.name) : '<span class="muted">por definir</span>'; };
+const mins = sec => { const m = sec / 60; return (Number.isInteger(m) ? m : m.toFixed(1).replace('.', ',')) + (m === 1 ? ' minuto' : ' minutos'); };
 const plain = id => (player(id) || {}).name || '';
 
 function render(s) {
@@ -192,8 +194,8 @@ function render(s) {
     $('backup').hidden = false; $('binfo').textContent = bk.players.length + ' participantes, guardada ' + new Date(bk.now).toLocaleString();
   } else $('backup').hidden = true;
 
-  if (document.activeElement !== $('dur')) $('dur').value = s.duration;
-  if (document.activeElement !== $('refDur')) $('refDur').value = s.refDuration;
+  if (document.activeElement !== $('dur')) $('dur').value = +(s.duration / 60).toFixed(2);
+  if (document.activeElement !== $('refDur')) $('refDur').value = +(s.refDuration / 60).toFixed(2);
   $('reg').textContent = s.regOpen ? 'Abiertas · cerrar' : 'Cerradas · abrir';
   $('reg').disabled = s.phase !== 'registro';
   const lock = s.phase !== 'registro', lim = s.cupos ? Math.min(s.cupos, s.players.length) : s.players.length;
@@ -224,7 +226,7 @@ function render(s) {
     const keyNow = String(s.activeRound), mts = s.rounds[s.activeRound].filter(m => !m.bye && m.a && m.b);
     if (s.third && s.third.a && s.third.b && s.activeRound === T - 1) mts.push(Object.assign({ key: 't' }, s.third));
     const ids = mts.flatMap(m => [[m.a, m.key || keyNow], [m.b, m.key || keyNow]]), up = ids.filter(([id, k]) => s.images[id] && s.images[id][k]).length;
-    $('liveHint').textContent = st === 'prep' ? 'Guarda la referencia de esta ronda abajo y pulsa "Mostrar referencia". Todos la verán durante ' + s.refDuration + ' s; luego se abre la carga por ' + s.duration + ' s.'
+    $('liveHint').textContent = st === 'prep' ? 'Guarda la referencia de esta ronda abajo y pulsa "Mostrar referencia". Todos la verán durante ' + mins(s.refDuration) + '; luego la ronda dura ' + mins(s.duration) + ' para subir la imagen.'
       : st === 'ref' ? 'Los estudiantes están viendo la referencia. Al terminar el tiempo se abre la carga de imágenes automáticamente.'
       : st === 'upload' ? 'Imágenes recibidas: ' + up + ' de ' + ids.length + '. Al terminar el tiempo se muestran los resultados; quien no suba imagen pierde.'
       : (currentDuel(s) ? 'En pantalla: ' + currentDuel(s).label + ' (borde azul en las llaves). Haz clic en el nombre del ganador y la pantalla pasa a la siguiente llave.' : 'Ronda terminada. Inicia la siguiente fase cuando quieras.');
@@ -307,8 +309,9 @@ $('refSave').onclick = async () => {
   if (ok) { refPicked = ''; $('refMsg').textContent = 'Referencia guardada.'; $('refMsg').hidden = false; setTimeout(() => { $('refMsg').hidden = true; }, 2500); loadRefs(); }
 };
 
-$('dur').addEventListener('change', e => act('config', { duration: e.target.value }));
-$('refDur').addEventListener('change', e => act('config', { refDuration: e.target.value }));
+const toSec = v => Math.round(parseFloat(String(v).replace(',', '.')) * 60);
+$('dur').addEventListener('change', e => act('config', { duration: toSec(e.target.value) }));
+$('refDur').addEventListener('change', e => act('config', { refDuration: toSec(e.target.value) }));
 $('reg').onclick = () => act('config', { regOpen: !STATE.regOpen });
 $('link').textContent = location.origin + '/';
 $('copy').onclick = () => navigator.clipboard.writeText(location.origin + '/').then(() => { $('copy').textContent = 'Copiado'; setTimeout(() => $('copy').textContent = 'Copiar', 1500); }).catch(() => {});

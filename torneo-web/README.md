@@ -37,7 +37,7 @@ Dos cosas del plan gratuito que debes saber:
 ## Cómo se dirige un torneo
 
 1. Proyecta `/pantalla` y pulsa "Activar sonido". Los concursantes se inscriben con el QR.
-2. En `/admin` ajusta el tiempo para ver la referencia y el tiempo para subir la imagen. Cuando estén todos inscritos pulsa **Sortear**.
+2. En `/admin` ajusta, en minutos, el tiempo para mostrar la referencia y el tiempo de duración de ronda. Cuando estén todos inscritos pulsa **Sortear**.
 3. En **Referencia de la ronda** escribe el texto y/o sube la imagen que deben seguir, y pulsa **Guardar referencia**. Puedes dejar listas las de todas las rondas desde el principio.
 4. Pulsa **Iniciar fase** y luego **Mostrar referencia**. Cada fase avanza sola:
    - **Referencia:** todos la ven en la pantalla y en su celular durante el tiempo configurado.
