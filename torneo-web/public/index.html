@@ -4,49 +4,58 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Torneo de Prompts TEINCO 2026</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
 <link rel="stylesheet" href="/style.css">
 <style>
-body{display:flex;justify-content:center;padding:24px 16px}
-.card{width:100%;max-width:440px;display:flex;flex-direction:column;gap:18px;text-align:center}
-h1{font-size:2.6rem}
-h1 span{color:var(--gold-ink)}
-form{display:flex;flex-direction:column;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px}
-form input{font-size:1.2rem;text-align:center}
-form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase;letter-spacing:.05em}
-.me{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:24px 18px;display:flex;flex-direction:column;align-items:center;gap:10px}
-.me .av{font-size:3.4rem;animation:pop .6s both}
-.me .name{font-family:var(--display);font-size:2.2rem;text-transform:uppercase;overflow-wrap:anywhere;line-height:1}
-.status{border-radius:10px;padding:18px;background:var(--panel2);font-size:1.1rem;animation:rise .4s both}
-.status.good{background:var(--winbg);border:1px solid var(--win)}
-.status.gold{background:var(--gold-soft);border:1px solid var(--gold)}
-.status .big{font-family:var(--display);font-size:1.9rem;text-transform:uppercase;line-height:1.05;display:block;margin-bottom:6px}
-.status .clock{font-family:var(--display);font-size:3.4rem;color:var(--gold-ink);font-variant-numeric:tabular-nums;display:block}
-.ronda{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;text-align:left}
-.ronda b{font-family:var(--display);font-size:1.6rem;text-transform:uppercase;line-height:1}
-.up{display:flex;flex-direction:column;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;text-align:left}
-.up h2{font-size:1.4rem}
-.prev{aspect-ratio:4/3;max-width:100%;border:2px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--panel2);color:var(--muted);text-align:center;padding:10px}
+/* Celular del estudiante: una columna, todo al alcance del pulgar */
+body{display:flex;justify-content:center;padding-inline:16px;padding-block:28px 48px}
+.card{width:100%;max-width:460px;display:flex;flex-direction:column;gap:14px}
+.hero{display:flex;flex-direction:column;gap:6px;padding:8px 4px 14px}
+.hero small{font:600 .95rem var(--body);color:var(--muted)}
+h1{font-size:clamp(2.6rem,12vw,3.6rem);letter-spacing:-.045em;line-height:.9}
+h1 span{color:var(--accent)}
+form,.me,.status,.ronda,.up{background:var(--panel);border-radius:var(--r-lg);animation:enter .42s var(--ease) both}
+form{display:flex;flex-direction:column;gap:12px;padding:22px}
+form label{font-size:1rem;font-weight:500;color:var(--muted)}
+form input{font-size:1.15rem;padding:16px 18px}
+form button{font-size:1.05rem;padding:17px;background:var(--accent);color:#fff}
+@media (hover:hover) and (pointer:fine){form button:hover:not(:disabled){background:var(--accent-ink)}}
+.me{padding:26px 20px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.me .av{font-size:3.6rem;animation:pop .5s var(--ease) both}
+.me .name{font-family:var(--display);font-weight:700;font-size:2.1rem;letter-spacing:-.035em;overflow-wrap:anywhere;line-height:1;text-align:center}
+.status{padding:20px;font-size:1.05rem;text-align:center}
+.status.good{background:var(--winbg)}
+.status.gold{background:var(--gold-soft)}
+.status .big{font-family:var(--display);font-weight:700;font-size:1.75rem;letter-spacing:-.03em;line-height:1.05;display:block;margin-bottom:8px}
+.ronda{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 20px}
+.ronda b{font-family:var(--display);font-weight:700;font-size:1.5rem;letter-spacing:-.03em;line-height:1}
+.up{display:flex;flex-direction:column;gap:14px;padding:20px}
+.up h2{font-size:1.35rem}
+.prev{aspect-ratio:4/3;max-width:100%;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg);color:var(--muted);text-align:center;padding:14px}
 .prev img{width:100%;height:100%;object-fit:contain}
-.prev.has{border-style:solid;border-color:var(--win);padding:0}
-.pick{display:block;text-align:center;font-family:var(--display);font-size:1.4rem;text-transform:uppercase;letter-spacing:.04em;background:var(--accent);color:#fff;border-radius:6px;padding:12px;cursor:pointer}
+.prev.has{padding:0;background:#fff;box-shadow:0 0 0 2px var(--win)}
+#refImg.has{box-shadow:none}
+.pick{display:flex;align-items:center;justify-content:center;font-weight:600;font-size:1.05rem;background:var(--accent);color:#fff;border-radius:999px;padding:17px;cursor:pointer;transition:transform .14s var(--ease),opacity .2s var(--ease)}
+.pick:active{transform:scale(.97)}
 .pick input{position:absolute;opacity:0;width:1px;height:1px}
 .pick.busy{opacity:.5;pointer-events:none}
-.cnt{font-family:var(--display);font-size:1.8rem;color:var(--gold-ink);font-variant-numeric:tabular-nums}
-.reftxt{margin:0;font-size:1.15rem;white-space:pre-wrap;background:var(--gold-soft);border-radius:8px;padding:12px 14px}
-.sndbtn{align-self:center;font-size:.9rem;padding:8px 14px}
-.rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.2rem;margin-top:8px}
+.cnt{font-family:var(--display);font-weight:700;font-size:1.7rem;letter-spacing:-.03em;color:var(--accent-ink);font-variant-numeric:tabular-nums}
+.reftxt{margin:0;font-size:1.1rem;white-space:pre-wrap;background:var(--gold-soft);border-radius:var(--r-md);padding:14px 16px}
+.sndbtn{align-self:flex-start;font-size:.9rem}
+.rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.1rem;margin-top:10px}
+#wait{text-align:center}
 </style>
 </head>
 <body>
 <main class="card">
-  <div><div class="k">TEINCO 2026</div><h1>Torneo de <span>Prompts</span></h1></div>
-  <button type="button" id="snd" class="sndbtn" hidden>🔊 Toca aquí para escuchar sonido y voz</button>
+  <div class="hero"><small>TEINCO 2026</small><h1>Torneo de <span>Prompts</span></h1></div>
+  <button type="button" id="snd" class="sndbtn" hidden>Toca aquí para escuchar sonido y voz</button>
 
   <form id="form" hidden>
     <label for="name" class="muted">Escribe tu nombre para inscribirte</label>
     <input id="name" type="text" maxlength="30" autocomplete="off" placeholder="Nombre y apellido" required>
-    <button class="gold" type="submit">Inscribirme</button>
+    <button class="primary" type="submit">Inscribirme</button>
     <div class="err" id="err" hidden></div>
   </form>
   <div class="status" id="closed" hidden><span class="big">Registro cerrado</span>El torneo ya comenzó. Sigue los duelos en la pantalla principal.</div>
