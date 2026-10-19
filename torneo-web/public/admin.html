@@ -114,6 +114,10 @@ code{font:500 .92rem var(--body);background:var(--bg);padding:8px 12px;border-ra
           <div class="field"><label for="refDur">Configuración de tiempo para mostrar la referencia de ronda a los participantes (minutos)</label><input id="refDur" type="number" min="0.5" max="120" step="0.5"></div>
           <div class="field"><label for="dur">Configuración de tiempo de duración de ronda (minutos)</label><input id="dur" type="number" min="0.5" max="120" step="0.5"></div>
           <div class="field"><label>Inscripciones</label><button id="reg" class="small"></button></div>
+          <div class="audio"><label>Anti-trampa</label>
+            <div class="sw"><span>Mostrar la referencia también en los celulares</span><button type="button" class="tg" id="aPR" data-k="phoneRef"></button></div>
+            <p class="muted" style="margin:0;font-size:.85rem">Desactívalo para que la referencia solo se vea en la pantalla principal y nadie pueda capturarla desde su celular.</p>
+          </div>
           <div class="audio"><label>Sonido y voz</label>
             <div class="sw"><span>Sonidos en pantalla principal</span><button type="button" class="tg" id="aSS" data-k="screenSound"></button></div>
             <div class="sw"><span>Voz narradora en pantalla principal</span><button type="button" class="tg" id="aSV" data-k="screenVoice"></button></div>

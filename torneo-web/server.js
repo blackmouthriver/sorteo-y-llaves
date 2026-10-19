@@ -16,7 +16,7 @@ const COLORS = ['#ff6b6b','#ffa94d','#ffd43b','#69db7c','#38d9a9','#4dabf7','#74
 
 const fresh = () => ({ phase: 'registro', regOpen: true, players: [], cupos: null, duration: 300, refDuration: 60, rounds: null,
   third: null, activeRound: -1, stage: null, drawAt: 0, event: null, phaseEvent: null, undo: null, images: {}, refs: {}, votes: {}, seq: 0,
-  audio: { screenSound: true, screenVoice: true, phoneSound: true, phoneVoice: true } });
+  audio: { screenSound: true, screenVoice: true, phoneSound: true, phoneVoice: true, phoneRef: true } });
 
 let S = fresh();
 try { S = Object.assign(fresh(), JSON.parse(fs.readFileSync(DATA, 'utf8'))); } catch (e) { /* primer arranque */ }
@@ -145,7 +145,7 @@ const ACTIONS = {
     }
     if (b.audio && typeof b.audio === 'object') {
       S.audio = Object.assign({}, fresh().audio, S.audio);
-      for (const k of ['screenSound', 'screenVoice', 'phoneSound', 'phoneVoice']) if (typeof b.audio[k] === 'boolean') S.audio[k] = b.audio[k];
+      for (const k of ['screenSound', 'screenVoice', 'phoneSound', 'phoneVoice', 'phoneRef']) if (typeof b.audio[k] === 'boolean') S.audio[k] = b.audio[k];
     }
     if (b.regOpen !== undefined) {
       if (b.regOpen && S.phase !== 'registro') fail('El registro solo se abre antes del sorteo.');

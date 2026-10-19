@@ -52,6 +52,12 @@ form button{font-size:1.05rem;padding:17px;background:var(--accent);color:#fff}
 .vopt.sel{background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
 .vopt.sel .vc{color:var(--accent-ink);font-weight:700}
 button.vopt{border-radius:var(--r-md);padding:8px}
+.refpic{width:100%;height:100%;background:#fff center/contain no-repeat}
+#refImg{position:relative}
+#refImg .wm{position:absolute;inset:0;pointer-events:none;background-repeat:repeat}
+#refBox,#refBox *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body.veiled #refBox .prev,body.veiled #refBox .reftxt{filter:blur(22px);opacity:.15}
+#refBox .prev,#refBox .reftxt{transition:filter .2s var(--ease),opacity .2s var(--ease)}
 .rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.1rem;margin-top:10px}
 #wait{text-align:center}
 </style>
@@ -239,7 +245,7 @@ function narrate(s, st) {
   else FX.play('chime');
   FX.say((sameBig ? '' : big + '. ') + body, { flush: true });
   const ref = s.refs && s.refs[s.activeRound];
-  if (stage === 'ref' && /en juego/i.test(big) && ref && ref.text) FX.say('La referencia es: ' + ref.text);
+  if (stage === 'ref' && /en juego/i.test(big) && ref && ref.text && !(s.audio && s.audio.phoneRef === false)) FX.say('La referencia es: ' + ref.text);
 }
 // Últimos segundos: tic-tac en el celular mientras su duelo está en juego
 setInterval(() => {
@@ -269,15 +275,34 @@ function renderRef(s) {
   $('refBox').hidden = !show;
   if (!show) return;
   $('refTitle').textContent = 'Referencia · ' + roundName(s.activeRound, s.rounds.length);
-  const sig = s.activeRound + ':' + ref.img + ':' + ref.text;
+  const onPhone = !(s.audio && s.audio.phoneRef === false);
+  const sig = s.activeRound + ':' + ref.img + ':' + ref.text + ':' + onPhone;
   if (sig !== shownRef) {
     shownRef = sig;
+    if (!onPhone) {
+      $('refImg').hidden = true; $('refImg').innerHTML = '';
+      $('refTxt').hidden = false; $('refTxt').textContent = 'Mira la referencia en la pantalla principal.';
+      return;
+    }
+    // La imagen va como fondo (no se puede guardar con toque largo) y con marca de agua con el nombre
     $('refImg').hidden = !ref.img;
-    $('refImg').innerHTML = ref.img ? '<img alt="Imagen de referencia" src="/img/ref_' + s.activeRound + '.jpg?v=' + ref.img + '">' : '';
+    $('refImg').innerHTML = ref.img ? '<div class="refpic" style="background-image:url(/img/ref_' + s.activeRound + '.jpg?v=' + ref.img + ')"></div><div class="wm" style="background-image:url(' + watermark() + ')"></div>' : '';
     $('refTxt').hidden = !ref.text; $('refTxt').textContent = ref.text || '';
   }
 }
 let shownImg = '', lastUpKey = '';
+// ---------- anti-trampa: marca de agua, sin guardar imagen, se oculta al salir de la página
+function watermark() {
+  const me = myLocal || (STATE && myId && player(myId)) || {}, t = (me.name || 'TEINCO') + ' · ' + new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="140"><text x="10" y="80" transform="rotate(-24 130 70)" font-family="sans-serif" font-size="17" font-weight="700" fill="rgba(255,255,255,.38)" stroke="rgba(12,18,32,.28)" stroke-width=".6">' + esc(t) + '</text></svg>';
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg).replace(/\(/g, '%28').replace(/\)/g, '%29').replace(/'/g, '%27');
+}
+const veil = on => document.body.classList.toggle('veiled', on);
+document.addEventListener('visibilitychange', () => veil(document.hidden));
+window.addEventListener('blur', () => veil(true));
+window.addEventListener('focus', () => setTimeout(() => veil(false), 250));
+document.addEventListener('contextmenu', e => { if (e.target.closest('#refBox')) e.preventDefault(); });
+document.addEventListener('keyup', e => { if (e.key === 'PrintScreen') { veil(true); try { navigator.clipboard.writeText('Captura no permitida en el Torneo de Prompts'); } catch (x) {} setTimeout(() => veil(false), 1500); } });
 function renderUpload(s, me) {
   renderRef(s);
   const key = s.stage && s.stage.name === 'upload' ? activeKey(s, me.id) : null;
