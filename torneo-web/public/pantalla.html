@@ -10,6 +10,10 @@
 body{padding:18px 24px 40px;overflow-x:hidden}
 header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:3px solid var(--gold);padding-bottom:10px;margin-bottom:20px}
 header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)}
+.fxbar{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.85rem}
+.fxbar label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.fxbar select{font:inherit;font-size:.85rem;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);max-width:260px}
+.fxwarn{margin:6px 0 0;width:100%;font-size:.9rem;color:var(--gold-ink)}
 #phase{font-family:var(--display);font-size:1.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
 /* registro */
 .join{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:28px;background:var(--stage);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:22px;text-align:center}
@@ -117,7 +121,14 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 <body>
 <header>
   <h1>Torneo de <span>Prompts</span> TEINCO 2026</h1>
-  <div class="row"><span id="phase"></span><button id="sound" class="small">🔇 Activar sonido</button></div>
+  <div class="row"><span id="phase"></span><button id="sound" class="small gold">🔇 Activar sonido y voz</button>
+    <span class="fxbar" id="fxbar" hidden>
+      <label><input type="checkbox" id="fxSnd" checked> Sonido</label>
+      <label><input type="checkbox" id="fxVoz" checked> Voz</label>
+      <select id="fxVoice" aria-label="Voz del narrador"></select>
+      <button id="fxTest" class="small">Probar voz</button>
+    </span></div>
+  <p class="fxwarn" id="fxwarn" hidden></p>
 </header>
 
 <section id="join" hidden>
@@ -133,25 +144,39 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/common.js"></script>
+<script src="/sfx.js"></script>
 <script>
-const STEP = 2400; // milisegundos por llave en el sorteo
+const STEP = 3800; // milisegundos por llave en el sorteo (da tiempo a que la voz anuncie cada cruce)
 const CONSUELO = ['¡Gran esfuerzo, {n}! Lo diste todo.', 'Gracias por participar, {n}. ¡La próxima es tuya!',
   '{n} cae con la frente en alto. ¡Aplausos!', '¡Qué gran duelo, {n}! Hoy no se dio, pero dejaste huella.'];
 const seen = new Set();
+let drawSig = '', lastTick = 0, lastStageKey = '', lastDuelKey = '', lastImgs = -1, said = {};
 let first = true, lastEvent = null, lastPhase = null, overlayT = null, view = '', endedFor = 0, lastSec = -1, drawDone = false;
 
-// ---------- sonido
-let audio = null;
-$('sound').onclick = () => { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); $('sound').textContent = '🔊 Sonido activo'; tone(880, .15); } catch (e) {} };
-function tone(freq, dur, type, at) {
-  if (!audio) return;
-  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + (at || 0);
-  o.type = type || 'sine'; o.frequency.value = freq; o.connect(g); g.connect(audio.destination);
-  g.gain.setValueAtTime(.25, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
-  o.start(t); o.stop(t + dur);
-}
-const fanfare = () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .35, 'triangle', i * .14));
-const buzzer = () => { tone(220, .9, 'sawtooth'); tone(165, .9, 'square'); };
+// ---------- sonido y voz
+const fanfare = () => FX.play('fanfare');
+const buzzer = () => FX.play('buzzer');
+const plainName = id => (player(id) || {}).name || '';
+$('sound').onclick = () => {
+  FX.unlock();
+  $('sound').hidden = true; $('fxbar').hidden = false;
+  FX.play('chime');
+  FX.say('Sonido activado. Bienvenidos al Torneo de Prompts TEINCO 2026.', { flush: true });
+};
+$('fxSnd').checked = FX.state.sound; $('fxVoz').checked = FX.state.voice;
+$('fxSnd').onchange = e => FX.setSound(e.target.checked);
+$('fxVoz').onchange = e => FX.setVoiceOn(e.target.checked);
+$('fxVoice').onchange = e => { FX.setVoice(e.target.value); FX.say('Hola, esta es la voz del narrador del torneo.', { flush: true }); };
+$('fxTest').onclick = () => FX.say('Hola, esta es la voz del narrador del torneo.', { flush: true });
+FX.onVoices(() => {
+  $('fxVoice').innerHTML = FX.voices.map(v => '<option value="' + esc(v.name) + '">' + esc(v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '')) + ' (' + v.lang + ')' + (FX.isMale(v) ? ' ♂' : '') + '</option>').join('') || '<option>Sin voces en español</option>';
+  if (FX.voice) $('fxVoice').value = FX.voice.name;
+  const w = $('fxwarn');
+  w.hidden = !FX.voices.length || FX.isMale(FX.voice) && /natural|online|neural/i.test(FX.voice.name);
+  w.textContent = !FX.voices.length ? '' : FX.isMale(FX.voice)
+    ? 'Para una voz masculina más natural abre esta pantalla en Microsoft Edge (voces "Natural", por ejemplo Gonzalo o Jorge).'
+    : 'No se encontró una voz masculina en este navegador. Abre esta pantalla en Microsoft Edge para usar la voz natural de Gonzalo o Jorge.';
+});
 
 // ---------- confeti
 const fx = $('fx'), ctx = fx.getContext('2d');
@@ -177,7 +202,7 @@ function overlay(html, ms) {
   clearTimeout(overlayT); overlayT = setTimeout(() => { $('overlay').hidden = true; }, ms);
 }
 function celebrate(ev) {
-  if (ev.type === 'auto') { overlay('<div class="big" style="font-size:clamp(2rem,5vw,3.6rem)">⏱ Se cerró la carga</div><div class="mid">Quien no subió su imagen a tiempo pierde su duelo automáticamente.</div>', 5000); buzzer(); return; }
+  if (ev.type === 'auto') { overlay('<div class="big" style="font-size:clamp(2rem,5vw,3.6rem)">⏱ Se cerró la carga</div><div class="mid">Quien no subió su imagen a tiempo pierde su duelo automáticamente.</div>', 5000); buzzer(); FX.say('Se cerró la carga. Quien no subió su imagen a tiempo pierde su duelo automáticamente.'); return; }
   const s = STATE, T = s.rounds.length, w = player(ev.winner), l = player(ev.loser);
   const wn = w ? esc(w.name) : '', ln = l ? esc(l.name) : '';
   let big, mid, soft;
@@ -195,14 +220,18 @@ function celebrate(ev) {
   }
   overlay(avatar(w) + '<div class="big">' + big + '</div><div class="mid">' + mid + '</div><div class="soft">' + soft + '</div>', ev.type === 'champion' ? 11000 : 7000);
   confetti(ev.type === 'champion' ? 420 : 160); fanfare();
-  if (ev.type === 'champion') setTimeout(() => { confetti(300); fanfare(); }, 2500);
+  if (ev.type === 'champion') { FX.play('applause'); setTimeout(() => { confetti(300); fanfare(); FX.play('applause'); }, 2500); }
+  else setTimeout(() => FX.play(ev.type === 'third' ? 'applause' : 'sad'), 1300);
+  const tmp = document.createElement('div'); tmp.innerHTML = big + '. ' + mid + '. ' + soft;
+  FX.say(ev.type === 'champion' ? '¡' + plainName(ev.winner) + ' es el campeón del Torneo de Prompts TEINCO 2026! ¡Felicitaciones! ' + plainName(ev.loser) + ' es el subcampeón. ¡Un torneo enorme!' : tmp.textContent);
 }
 function banner(r) {
   const T = STATE.rounds.length, fin = r === T - 1;
   overlay('<div class="k" style="font-size:2rem">' + (fin ? 'Llegó el momento' : 'Comienza la fase') + '</div><div class="big">' +
     (fin ? '🏆 La gran final' : roundName(r, T)) + '</div><div class="mid">' + (fin ? 'Solo queda un duelo por la gloria' : '¡Mucha suerte a todos!') + '</div>', fin ? 5500 : 3800);
   if (fin) confetti(220);
-  fanfare();
+  fanfare(); FX.play('whoosh');
+  FX.say(fin ? 'Llegó el momento. ¡La gran final! Solo queda un duelo por la gloria.' : 'Comienza la fase: ' + roundName(r, T) + '. ¡Mucha suerte a todos!');
 }
 
 // ---------- imágenes de los duelos
@@ -253,9 +282,14 @@ function renderDraw() {
   let html;
   if (idx >= f.length) {
     drawDone = true;
+    if (drawSig !== 'done') { drawSig = 'done'; FX.play('fanfare'); FX.say('Sorteo completo. Estos son los cruces. ¡Que comience el torneo!'); }
     html = '<div class="stage"><div class="k" style="font-size:1.6rem">Sorteo completo</div><p class="muted" style="font-size:1.2rem;margin:6px 0 0">Estos son los cruces. En un momento comienza la primera fase.</p></div>';
   } else {
-    const mt = f[idx], t = el - idx * STEP, aSet = t > STEP * .4, bSet = t > STEP * .8;
+    const mt = f[idx], t = el - idx * STEP, aSet = t > STEP * .3, bSet = t > STEP * .55;
+    const sig = idx + (aSet ? 'a' : '') + (bSet ? 'b' : '');
+    if (sig !== drawSig) { if (drawSig && (aSet || bSet)) FX.play('lock'); drawSig = sig;
+      if (bSet) FX.say('Llave ' + (idx + 1) + ': ' + plainName(mt.a) + (mt.bye ? ', pasa directo a la siguiente ronda.' : ' contra ' + plainName(mt.b) + '.')); }
+    else if (!bSet && Date.now() - lastTick > 110) { lastTick = Date.now(); FX.play('tick'); }
     const b = mt.bye ? '<div class="side set"><span class="av ghost">·</span><div class="nm">Pasa directo</div></div>' : side(bSet ? player(mt.b) : rnd(), bSet ? 'set' : 'spin');
     html = '<div class="stage"><div class="k" style="font-size:1.6rem">Llave ' + (idx + 1) + ' de ' + f.length + '</div><div class="duel">' +
       side(aSet ? player(mt.a) : rnd(), aSet ? 'set' : 'spin') + '<div class="vs">VS</div>' + b + '</div></div>';
@@ -324,20 +358,69 @@ function tick() {
   const sec = Math.ceil(ms / 1000), end = STATE.stage.endsAt;
   if (ms <= 0) {
     c.textContent = '¡Tiempo terminado!'; c.className = 'end';
-    if (endedFor !== end) { endedFor = end; buzzer(); }
+    if (endedFor !== end) { endedFor = end; buzzer(); FX.say('¡Tiempo!', { flush: true }); }
   } else {
     c.textContent = fmt(ms); c.className = sec <= 10 ? 'low' : '';
-    if (sec <= 5 && sec !== lastSec) tone(660, .12);
+    if (sec !== lastSec && lastSec !== -1) {
+      const k = end + ':' + sec;
+      if (sec === 60 && !said[k]) { said[k] = 1; FX.say('Queda un minuto.'); }
+      if (sec === 30 && !said[k]) { said[k] = 1; FX.say('Quedan treinta segundos.'); }
+      if (sec === 10 && !said[k]) { said[k] = 1; FX.say('¡Diez segundos!', { flush: true }); }
+      if (sec <= 10) FX.play(sec <= 3 ? 'tickHi' : 'tick');
+    }
     lastSec = sec;
   }
 }
 setInterval(tick, 150);
 
+// Narración: compara el estado nuevo con el anterior y anuncia lo que cambió
+function announce(s) {
+  const T = s.rounds ? s.rounds.length : 0;
+  if (s.phase === 'registro') {
+    const nuevos = s.players.filter(p => !seen.has(p.id));
+    if (nuevos.length) { FX.play('welcome'); FX.say(nuevos.length > 2 ? 'Se inscribieron ' + nuevos.length + ' participantes más. ¡Bienvenidos!' : nuevos.map(p => 'Bienvenido, ' + p.name + '.').join(' ')); }
+  }
+  if (s.phase === 'sorteo' && lastStageKey !== 'sorteo') { lastStageKey = 'sorteo'; FX.play('drumroll'); FX.say('¡Comienza el sorteo! Atentos a sus pantallas.', { flush: true }); }
+  if (s.phase === 'torneo' && s.stage) {
+    const r = s.activeRound, st = s.stage.name, key = r + ':' + st, ref = s.refs && s.refs[r];
+    if (key !== lastStageKey) {
+      lastStageKey = key;
+      if (st === 'ref') { FX.play('gong'); FX.say('Atención. Esta es la referencia de ' + roundName(r, T) + '. ' + (ref && ref.text ? ref.text + '. ' : 'Observen la imagen con atención. ') + 'Tienen ' + durText(s.refDuration) + ' para observarla.'); }
+      if (st === 'upload') { FX.play('horn'); FX.say('Se oculta la referencia. Se abre la carga de imágenes: tienen ' + durText(s.duration) + ' para subir su imagen desde el celular. Quien no suba imagen, pierde.'); lastImgs = -1; }
+      if (st === 'results') FX.say('Se cerró la carga. ¡Veamos los resultados!');
+    }
+    if (st === 'upload') {
+      const n = phaseMatches(s).reduce((a, x) => a + [x.mt.a, x.mt.b].filter(id => s.images[id] && s.images[id][x.key]).length, 0);
+      if (lastImgs >= 0 && n > lastImgs) FX.play('blip');
+      lastImgs = n;
+    }
+    if (st === 'results') {
+      const list = phaseMatches(s), cur = list.find(x => !x.mt.winner);
+      const dk = cur ? r + ':' + cur.key + ':' + cur.mt.a + cur.mt.b : r + ':fin';
+      if (dk !== lastDuelKey) {
+        lastDuelKey = dk;
+        if (cur) { setTimeout(() => FX.play('drumroll'), 400); FX.say((cur.third ? 'Duelo por el tercer puesto' : cur.label === 'Final' ? 'La gran final' : cur.label) + ': ' + plainName(cur.mt.a) + ' contra ' + plainName(cur.mt.b) + '. Comparen las imágenes con la referencia. ¿Quién ganará?'); }
+        else if (s.phase === 'torneo') FX.say('Terminó ' + roundName(r, T) + '. Estos son todos los resultados de la ronda.');
+      }
+    }
+  }
+  if (s.phase === 'fin' && lastStageKey !== 'fin') {
+    lastStageKey = 'fin';
+    const pod = podium(s);
+    setTimeout(() => FX.play('applause'), 500);
+    FX.say('Este es el podio final. Campeón: ' + plainName(pod.first) + '. Subcampeón: ' + plainName(pod.second) + '.' + (pod.third ? ' Tercer puesto: ' + plainName(pod.third) + '.' : '') + ' ¡Gracias a todos por participar!');
+  }
+}
+
 connect(s => {
   if (first) { first = false; lastEvent = s.event && s.event.id; lastPhase = s.phaseEvent && s.phaseEvent.id; s.players.forEach(p => seen.add(p.id)); if (s.stage && s.stage.endsAt && stageLeft(s) <= 0) endedFor = s.stage.endsAt; }
-  render();
+  const isFirst = !lastStageKey && !lastDuelKey;
+  if (isFirst) { lastStageKey = s.phase === 'torneo' && s.stage ? s.activeRound + ':' + s.stage.name : s.phase; const c = currentDuel(s); lastDuelKey = c ? s.activeRound + ':' + c.key + ':' + c.mt.a + c.mt.b : s.activeRound + ':fin'; }
+  const newcomers = s.phase === 'registro' ? s.players.filter(p => !seen.has(p.id)) : [];
   if (s.event && s.event.id !== lastEvent) celebrate(s.event);
   if (s.phaseEvent && s.phaseEvent.id !== lastPhase) banner(s.phaseEvent.r);
+  if (!isFirst) announce(s);
+  render();
   lastEvent = s.event && s.event.id; lastPhase = s.phaseEvent && s.phaseEvent.id;
 });
 const link = location.origin + '/';

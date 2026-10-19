@@ -34,12 +34,14 @@ form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase
 .pick.busy{opacity:.5;pointer-events:none}
 .cnt{font-family:var(--display);font-size:1.8rem;color:var(--gold-ink);font-variant-numeric:tabular-nums}
 .reftxt{margin:0;font-size:1.15rem;white-space:pre-wrap;background:var(--gold-soft);border-radius:8px;padding:12px 14px}
+.sndbtn{align-self:center;font-size:.9rem;padding:8px 14px}
 .rival{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:1.2rem;margin-top:8px}
 </style>
 </head>
 <body>
 <main class="card">
   <div><div class="k">TEINCO 2026</div><h1>Torneo de <span>Prompts</span></h1></div>
+  <button type="button" id="snd" class="sndbtn">🔇 Activar sonido y voz</button>
 
   <form id="form" hidden>
     <label for="name" class="muted">Escribe tu nombre para inscribirte</label>
@@ -67,6 +69,7 @@ form button{font-family:var(--display);font-size:1.5rem;text-transform:uppercase
   <p class="muted" id="wait">Conectando…</p>
 </main>
 <script src="/common.js"></script>
+<script src="/sfx.js"></script>
 <script>
 const KEY = 'torneo-jugador', TKEY = 'torneo-token';
 const DKEY = 'torneo-dispositivo';
@@ -145,7 +148,49 @@ function render(s) {
   $('status').innerHTML = '<span class="big">' + st.big + '</span>' + (st.html ? st.txt : esc(st.txt));
   $('ronda').hidden = !RONDA; $('rondaTxt').textContent = RONDA;
   renderUpload(s, me);
+  narrate(s, st);
 }
+
+// ---------- sonido y voz en el celular
+function sndLabel() { $('snd').textContent = FX.state.unlocked && FX.state.voice ? '🔊 Sonido y voz activos (tocar para silenciar)' : '🔇 Activar sonido y voz'; }
+$('snd').onclick = () => {
+  if (FX.state.unlocked && FX.state.voice) { FX.setVoiceOn(false); FX.setSound(false); }
+  else { FX.unlock(); FX.setVoiceOn(true); FX.setSound(true); FX.play('chime'); FX.say('Sonido y voz activados.', { flush: true }); lastNarr = ''; if (STATE) render(STATE); }
+  sndLabel();
+};
+sndLabel();
+let lastNarr = null, lastSecPh = -1, lastBig = '';
+function narrate(s, st) {
+  const stage = s.stage ? s.stage.name : '', key = st.big + '|' + stage + '|' + s.activeRound;
+  if (lastNarr === null) { lastNarr = key; return; } // al abrir la página no se lee nada
+  if (key === lastNarr) return;
+  lastNarr = key;
+  const big = st.big, tmp = document.createElement('div');
+  tmp.innerHTML = st.html ? st.txt : esc(st.txt);
+  const txt = tmp.textContent, body = txt.replace(/Tu rival:/, '. Tu rival:');
+  const sameBig = lastBig === big; lastBig = big;
+  if (/campeón|Subcampeón|Tercer puesto/i.test(big)) { FX.play('fanfare'); FX.play('applause'); }
+  else if (/Hasta aquí/i.test(big)) FX.play('sad');
+  else if (/inscrito/i.test(big)) FX.play('welcome');
+  else if (/en juego/i.test(big)) FX.play(stage === 'ref' ? 'gong' : stage === 'upload' ? 'horn' : stage === 'results' ? 'drumroll' : 'chime');
+  else if (/avanzaste/i.test(txt)) FX.play('fanfare');
+  else FX.play('chime');
+  FX.say((sameBig ? '' : big + '. ') + body, { flush: true });
+  const ref = s.refs && s.refs[s.activeRound];
+  if (stage === 'ref' && /en juego/i.test(big) && ref && ref.text) FX.say('La referencia es: ' + ref.text);
+}
+// Últimos segundos: tic-tac en el celular mientras su duelo está en juego
+setInterval(() => {
+  if (!STATE || !STATE.stage || !myId || !activeKey(STATE, myId)) return;
+  const ms = stageLeft(STATE); if (ms === null) return;
+  const sec = Math.ceil(ms / 1000);
+  if (sec !== lastSecPh) {
+    if (sec === 10 && STATE.stage.name === 'upload') FX.say('¡Diez segundos para subir tu imagen!', { flush: true });
+    if (sec <= 10 && sec > 0) FX.play(sec <= 3 ? 'tickHi' : 'tick');
+    if (sec === 0) FX.play('buzzer');
+    lastSecPh = sec;
+  }
+}, 200);
 
 // ---------- imagen del duelo
 function activeKey(s, id) {
@@ -197,6 +242,7 @@ $('file').addEventListener('change', async e => {
     const image = await toJpeg(f);
     await post('/api/upload', { id: myId, token: myToken, image });
     upMsg('¡Imagen recibida! Se mostrará en la pantalla cuando termine el tiempo de carga.');
+    FX.play('chime'); FX.say('¡Imagen recibida!', { flush: true });
   } catch (err) { upMsg(err.message, true); }
   $('pick').classList.remove('busy');
 });
@@ -207,6 +253,7 @@ $('form').addEventListener('submit', async e => {
   $('err').hidden = true;
   const btn = $('form').querySelector('button');
   if (btn.disabled) return;
+  FX.unlock(); sndLabel();
   btn.disabled = true; btn.textContent = 'Inscribiendo…';
   try {
     let r = null;
@@ -215,6 +262,7 @@ $('form').addEventListener('submit', async e => {
       catch (err) { if (err.status || i === 2) throw err; await new Promise(ok => setTimeout(ok, 1500)); } // reintenta solo si falló la red
     }
     saveMe(r.player, r.seq);
+    lastNarr = '';
     if (STATE) render(STATE);
   } catch (err) { $('err').textContent = err.status ? err.message : 'No hay conexión. Revisa tu internet e inténtalo de nuevo.'; $('err').hidden = false; }
   btn.disabled = false; btn.textContent = 'Inscribirme';

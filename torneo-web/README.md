@@ -46,6 +46,12 @@ Dos cosas del plan gratuito que debes saber:
 5. Cuando todos los duelos de la fase tengan ganador, inicia la siguiente.
 6. En la fase final se juegan la final y el tercer y cuarto puesto con la misma referencia.
 
+## Sonido y voz
+
+- En `/pantalla` pulsa **Activar sonido y voz**. Puedes apagar el sonido o la voz y elegir la voz del narrador.
+- Para una voz masculina natural, abre la pantalla en **Microsoft Edge** y elige una voz "Natural" (por ejemplo Gonzalo, de Colombia, o Jorge, de México). Chrome solo trae voces más robóticas.
+- En el celular, el sonido se activa al inscribirse o con el botón **Activar sonido y voz**. La voz depende del teléfono.
+
 No hay cupo fijo: el torneo se arma con todos los inscritos al momento del sorteo. Si el número no es potencia de 2 (por ejemplo 11), algunos pasan directo a la segunda ronda por sorteo.
 
 Las imágenes se guardan en la carpeta `img-data/` del servidor. En Render gratis se pierden si el servicio se reinicia o se vuelve a desplegar, así que no despliegues cambios en pleno torneo.
