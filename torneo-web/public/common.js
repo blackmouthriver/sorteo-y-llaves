@@ -5,14 +5,20 @@ let STATE = null, clockOffset = 0;
 const now = () => Date.now() + clockOffset;
 
 // Conexión en vivo que se recupera sola si el celular se bloquea, cambia de red o el servidor se reinicia
-let lastMsg = 0;
+let lastMsg = 0, bootSeen = 0;
 function connect(onState) {
   let es = null;
   const open = () => {
     if (es) es.close();
     es = new EventSource('/api/stream');
     lastMsg = Date.now();
-    es.onmessage = e => { lastMsg = Date.now(); const d = JSON.parse(e.data); clockOffset = d.now - Date.now(); STATE = d; onState(d); };
+    es.onmessage = e => {
+      lastMsg = Date.now(); const d = JSON.parse(e.data);
+      // Si se publicó una versión nueva (o el servidor se reinició), recargar para usar el código nuevo
+      if (bootSeen && d.boot && d.boot !== bootSeen) { location.reload(); return; }
+      bootSeen = d.boot || bootSeen;
+      clockOffset = d.now - Date.now(); STATE = d; onState(d);
+    };
     es.addEventListener('ping', () => { lastMsg = Date.now(); });
     es.onerror = () => { if (es.readyState === 2) setTimeout(open, 3000); };
   };
