@@ -81,7 +81,7 @@ header h1 small{font:600 .42em var(--body);letter-spacing:0;color:var(--muted);m
 /* resultados llave por llave */
 .one{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr) minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:start;margin-top:16px}
 .one .oside{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
-.one .pic{aspect-ratio:auto;height:min(48vh,560px);background:#fff}
+.one .pic{aspect-ratio:auto;height:clamp(200px,calc(100vh - 400px),600px);background:#fff}
 .one .oref .pic{box-shadow:0 0 0 3px var(--gold)}
 .one .zn{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,2.8vw,2.5rem);letter-spacing:-.035em;line-height:1;text-align:center}
 .one .zn .av{font-size:1.4rem}
@@ -89,6 +89,8 @@ header h1 small{font:600 .42em var(--body);letter-spacing:0;color:var(--muted);m
 @media (max-width:800px){.one{grid-template-columns:minmax(0,1fr)}.one .pic{height:40vh}}
 /* zoom */
 .votehint{text-align:center;margin:14px 0 0;font-family:var(--display);font-weight:600;font-size:clamp(1.05rem,1.8vw,1.4rem);color:var(--accent-ink)}
+.picwrap{position:relative;width:100%}
+.picwrap .vote{position:absolute;left:12px;right:12px;bottom:12px;width:auto;max-width:none;background:rgba(255,255,255,.94);border-radius:var(--r-md);padding:10px 14px;box-shadow:var(--shadow-float)}
 .vote{width:100%;max-width:420px;display:flex;flex-direction:column;gap:8px}
 .vnum{font-size:clamp(1rem,1.6vw,1.3rem);color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .vnum b{font-family:var(--display);font-size:1.6em;color:var(--ink);letter-spacing:-.03em}
@@ -349,7 +351,7 @@ function render() {
       const n = list.indexOf(cur) + 1, vt = votesOf(s, cur), tot = vt.a + vt.b;
       const vbar = k => { const pc = tot ? Math.round(vt[k] * 100 / tot) : 0, lead = tot && vt[k] > vt[k === 'a' ? 'b' : 'a'];
         return '<div class="vote' + (lead ? ' lead' : '') + '"><div class="vnum"><b>' + vt[k] + '</b> ' + (vt[k] === 1 ? 'voto' : 'votos') + (tot ? ' · ' + pc + '%' : '') + '</div><div class="vtrack"><i style="transform:scaleX(' + (tot ? vt[k] / tot : 0) + ')"></i></div></div>'; };
-      const side = (id, k) => { const p = player(id); return '<div class="oside">' + pic(id, cur.key, 'show') + '<div class="zn">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div>' + vbar(k) + '</div>'; };
+      const side = (id, k) => { const p = player(id); return '<div class="oside"><div class="picwrap">' + pic(id, cur.key, 'show') + vbar(k) + '</div><div class="zn">' + avatar(p) + '<span>' + (p ? esc(p.name) : '') + '</span></div></div>'; };
       const mid = '<div class="oside oref">' + (ref && ref.img ? '<div class="pic has"><img alt="Referencia" src="/img/ref_' + r + '.jpg?v=' + ref.img + '"></div>' : '') +
         '<div class="zn">Referencia</div>' + (ref && ref.text ? '<p class="zt">' + esc(ref.text) + '</p>' : '') + '</div>';
       $('view').innerHTML = '<div class="stage"><div class="k" style="font-size:1.6rem">' + roundName(r, T) + ' · ' + esc(cur.label) + ' · duelo ' + n + ' de ' + list.length + '</div></div>' +

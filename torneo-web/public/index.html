@@ -184,6 +184,7 @@ try { myVotes = JSON.parse(localStorage.getItem(VKEY)) || {}; } catch (e) {}
 function renderVote(s, me) {
   const d = s.phase === 'torneo' && s.stage && s.stage.name === 'results' ? currentDuel(s) : null;
   $('vote').hidden = !d;
+  if (d && !myToken) { $('vote').hidden = false; $('vgrid').innerHTML = ''; $('voteTitle').textContent = 'Votación en curso'; $('voteHint').textContent = 'Para votar debes usar el celular con el que te inscribiste.'; shownVote = ''; return; }
   if (!d) return;
   const vk = voteKey(d), mine = me.id === d.mt.a || me.id === d.mt.b, vt = votesOf(s, d), tot = vt.a + vt.b;
   if (vk !== shownVote) {
