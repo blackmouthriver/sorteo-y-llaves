@@ -9,7 +9,7 @@
 <style>
 body{padding:18px 24px 40px;overflow-x:hidden}
 header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;border-bottom:3px solid var(--gold);padding-bottom:10px;margin-bottom:20px}
-header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold)}
+header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold-ink)}
 #phase{font-family:var(--display);font-size:1.6rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
 /* registro */
 .join{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:28px;background:var(--stage);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:22px;text-align:center}
@@ -27,7 +27,7 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold)}
 .side{display:flex;flex-direction:column;align-items:center;gap:12px;min-width:0}
 .side .av{font-size:clamp(2.6rem,6.5vw,5rem)}
 .side .nm{font-family:var(--display);font-size:clamp(1.8rem,4.6vw,4rem);text-transform:uppercase;line-height:1;overflow-wrap:anywhere}
-.side.set .nm{color:var(--gold)} .side.spin .av{animation:pulse .3s infinite}
+.side.set .nm{color:var(--gold-ink)} .side.spin .av{animation:pulse .3s infinite}
 .vs{font-family:var(--display);font-size:clamp(1.6rem,3vw,2.6rem);color:var(--muted)}
 #clock{font-family:var(--display);font-size:clamp(4rem,11vw,8.5rem);line-height:.95;font-variant-numeric:tabular-nums;margin-top:10px}
 #clock.low{color:var(--bad);animation:pulse 1s infinite}
@@ -50,7 +50,7 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold)}
 .bracket{display:flex;gap:26px;overflow-x:auto;padding-bottom:10px}
 .round{flex:1 0 220px;min-width:220px;display:flex;flex-direction:column;gap:10px}
 .round h3{font-size:1.25rem;color:var(--muted);border-bottom:2px solid var(--line);padding-bottom:4px}
-.round.active h3{color:var(--gold);border-color:var(--gold)}
+.round.active h3{color:var(--gold-ink);border-color:var(--gold)}
 .ms{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:12px}
 .match{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
 .match.cur{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
@@ -58,21 +58,22 @@ header h1{font-size:clamp(2rem,4vw,3.2rem)} header h1 span{color:var(--gold)}
 .slot+.slot{border-top:1px solid var(--line)}
 .slot span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .slot.w{background:var(--winbg);color:var(--win);font-weight:600}
-.slot.l{opacity:.45}
+.slot.l{color:var(--muted);text-decoration:line-through}
+.slot.l .av{opacity:.5}
 .slot.e{color:var(--muted);font-style:italic}
 .tl{font-family:var(--display);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:8px}
 /* podio */
 .podium{display:flex;justify-content:center;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:26px 0}
 .step{display:flex;flex-direction:column;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px 12px 0 0;padding:18px 22px;min-width:190px;animation:rise .7s both}
 .step .av{font-size:3.4rem} .step .nm{font-family:var(--display);font-size:1.9rem;text-transform:uppercase;text-align:center;overflow-wrap:anywhere;line-height:1}
-.step.p1{border-color:var(--gold);padding-bottom:90px;background:#2c2408} .step.p1 .av{font-size:5.4rem;animation:pulse 1.6s infinite}
+.step.p1{border-color:var(--gold);padding-bottom:90px;background:var(--gold-soft)} .step.p1 .av{font-size:5.4rem;animation:pulse 1.6s infinite}
 .step.p2{padding-bottom:54px} .step.p3{padding-bottom:28px}
 .medal{font-size:2.4rem}
 /* superposiciones */
-#overlay{position:fixed;inset:0;background:rgba(5,7,15,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;z-index:5}
+#overlay{position:fixed;inset:0;background:rgba(238,241,246,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px;z-index:5}
 #overlay>.av{font-size:clamp(3.5rem,9vw,6.5rem);animation:pop .7s both}
 #overlay .soft .av{font-size:1.3em}
-#overlay .big{font-family:var(--display);font-size:clamp(2.4rem,6.5vw,5.2rem);text-transform:uppercase;line-height:1;color:var(--gold);animation:pop .6s both;overflow-wrap:anywhere}
+#overlay .big{font-family:var(--display);font-size:clamp(2.4rem,6.5vw,5.2rem);text-transform:uppercase;line-height:1;color:var(--gold-ink);animation:pop .6s both;overflow-wrap:anywhere}
 #overlay .mid{font-size:clamp(1.3rem,3vw,2.2rem);font-weight:600;animation:rise .6s .3s both}
 #overlay .soft{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;font-size:clamp(1.05rem,2.2vw,1.6rem);color:var(--muted);margin-top:22px;border-top:1px solid var(--line);padding-top:18px;animation:rise .6s 1.2s both;max-width:900px}
 #fx{position:fixed;inset:0;pointer-events:none;z-index:6}
@@ -122,7 +123,7 @@ let bits = [], fxOn = false;
 function confetti(n) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   fx.width = innerWidth; fx.height = innerHeight;
-  const cols = ['#ffc83d', '#6d93ff', '#4fd69a', '#ff8a80', '#f783ac', '#ffffff'];
+  const cols = ['#ffc83d', '#6d93ff', '#4fd69a', '#ff8a80', '#f783ac', '#131a2b'];
   for (let i = 0; i < n; i++) bits.push({ x: Math.random() * fx.width, y: -20 - Math.random() * fx.height * .5, vx: (Math.random() - .5) * 4,
     vy: 2 + Math.random() * 5, s: 6 + Math.random() * 8, r: Math.random() * 6, c: cols[i % cols.length] });
   if (!fxOn) { fxOn = true; requestAnimationFrame(frame); }
