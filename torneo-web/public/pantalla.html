@@ -20,12 +20,11 @@ header h1 small{font:600 .42em var(--body);letter-spacing:0;color:var(--muted);m
 .fxbar select{font-size:.85rem;padding:9px 14px;max-width:280px}
 .fxwarn{margin:0;width:100%;font-size:.9rem;color:var(--gold-ink)}
 /* registro */
-.join{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:clamp(20px,4vw,56px);background:var(--panel);border-radius:var(--r-lg);padding:clamp(22px,3.5vw,44px);margin-bottom:22px}
+.join{display:flex;flex-direction:column;align-items:center;text-align:center;gap:clamp(14px,2vh,24px);background:var(--panel);border-radius:var(--r-lg);padding:clamp(22px,3.5vw,44px);margin-bottom:22px}
 .join .k{font-size:clamp(1.1rem,1.8vw,1.5rem);color:var(--muted)}
-.join .url{font-family:var(--display);font-weight:800;font-size:clamp(2.2rem,6vw,5.4rem);letter-spacing:-.05em;color:var(--ink);overflow-wrap:anywhere;line-height:.95;margin:.12em 0 .2em}
-#qr{background:#fff;padding:14px;border-radius:var(--r-md);line-height:0;box-shadow:0 0 0 1px var(--line)}
-.count{font-family:var(--display);font-weight:600;font-size:clamp(1.2rem,2vw,1.7rem);color:var(--accent-ink)}
-@media (max-width:700px){.join{grid-template-columns:minmax(0,1fr)}#qr{justify-self:start}}
+.join .url{font-family:var(--display);font-weight:800;font-size:clamp(2rem,4.6vw,4.2rem);letter-spacing:-.05em;color:var(--ink);overflow-wrap:anywhere;line-height:.95;margin:.1em 0 .15em}
+#qr{background:#fff;padding:clamp(12px,1.6vw,22px);border-radius:var(--r-lg);line-height:0;box-shadow:0 0 0 1px var(--line);width:clamp(260px,46vh,520px);max-width:100%}
+#qr canvas,#qr img{width:100%!important;height:auto!important;display:block;image-rendering:pixelated}
 .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .chip{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:999px;padding:8px 20px 8px 8px;font-weight:600;font-size:1.1rem;min-width:0}
 .chip .av{font-size:1.05rem}
@@ -155,8 +154,9 @@ header h1 small{font:600 .42em var(--body);letter-spacing:0;color:var(--muted);m
 
 <section id="join" hidden>
   <div class="join">
-    <div><div class="k">Escanea el código o entra desde tu celular a</div><div class="url" id="url"></div><div class="count" id="count"></div></div>
+    <div class="k">Escanea el código con tu celular para inscribirte</div>
     <div id="qr"></div>
+    <div><div class="k">o entra a</div><div class="url" id="url"></div><div class="count" id="count"></div></div>
   </div>
 </section>
 <main id="view"><p class="muted">Conectando…</p></main>
@@ -455,7 +455,7 @@ connect(s => {
 });
 const link = location.origin + '/';
 $('url').textContent = location.host;
-try { new QRCode($('qr'), { text: link, width: 180, height: 180 }); } catch (e) { $('qr').hidden = true; }
+try { new QRCode($('qr'), { text: link, width: 600, height: 600 }); } catch (e) { $('qr').hidden = true; }
 </script>
 </body>
 </html>
